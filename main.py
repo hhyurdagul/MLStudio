@@ -76,14 +76,24 @@ def create_preprocessing_transformer(
 
 def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
     return (
-        df.select(pl.selectors.string(include_categorical=True).n_unique())
-        .unpivot(variable_name="Variable", value_name="Unique Count")
-        .with_columns(
-            pl.lit("String").alias("Type"),
-            pl.when(pl.col("Unique Count") > 10)
-            .then(pl.lit("OrdinalEncoder"))
-            .otherwise(pl.lit("OneHotEncoder"))
-            .alias("Preprocessing"),
+        pl.DataFrame(
+            schema={
+                "Variable": str,
+                "Unique Count": pl.UInt32,
+                "Type": str,
+                "Preprocessing": str,
+            }
+        )
+        .vstack(
+            df.select(pl.selectors.string(include_categorical=True).n_unique())
+            .unpivot(variable_name="Variable", value_name="Unique Count")
+            .with_columns(
+                pl.lit("String").alias("Type"),
+                pl.when(pl.col("Unique Count") > 10)
+                .then(pl.lit("OrdinalEncoder"))
+                .otherwise(pl.lit("OneHotEncoder"))
+                .alias("Preprocessing"),
+            )
         )
         .vstack(
             df.select(pl.selectors.numeric().n_unique())
@@ -158,16 +168,16 @@ def render_preprocessing_component(
     return transformer
 
 
-file_selector = st.file_uploader(
+col1, col2, col3 = st.columns([6, 7, 6])
+file_selector = col1.file_uploader(
     "Upload Train File", type=[".csv", ".xlsx"], accept_multiple_files=False
 )
 
 df = read_data(file_selector)
 columns = [] if df is None else df.columns
 
-col1, col2 = st.columns(2)
-target_selector = col2.selectbox("Select target", columns)
-feature_selector = col1.multiselect(
+target_selector = col3.selectbox("Select target", columns)
+feature_selector = col2.multiselect(
     "Select features", [i for i in columns if i != target_selector]
 )
 
