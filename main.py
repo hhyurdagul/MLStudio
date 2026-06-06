@@ -107,14 +107,13 @@ def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def render_preprocessing_component(
-    df: pl.DataFrame, features: list[str]
-) -> ColumnTransformer | None:
-
+    df: pl.DataFrame, features: list[str],
+) -> ColumnTransformer:
     with st.expander("Preprocessing"):
         is_customized = st.checkbox("Customize preprocessing")
-
         preprocessing_df = get_preprocessing_data(df.select(features))
 
+        st.write("Selected Preprocessing Steps")
         if is_customized:
             with st.container(border=True):
                 st.write("Customize Encoding")
@@ -151,8 +150,8 @@ def render_preprocessing_component(
 
                 preprocessing_df = _temp_df_1.vstack(_temp_df_2)
 
-        st.write("Selected Preprocessing Steps")
-        st.dataframe(preprocessing_df)
+        else:
+            st.dataframe(preprocessing_df)
 
         transformer = create_preprocessing_transformer(preprocessing_df)
 
@@ -165,22 +164,27 @@ def render_preprocessing_component(
             ),
         )
 
-    return transformer
+        return transformer
 
 
-col1, col2, col3 = st.columns([6, 7, 6])
-file_selector = col1.file_uploader(
-    "Upload Train File", type=[".csv", ".xlsx"], accept_multiple_files=False
-)
+def render_input_training_data_component():
+    col1, col2, col3 = st.columns([6, 7, 6])
+    file_selector = col1.file_uploader(
+        "Upload Train File", type=[".csv", ".xlsx"], accept_multiple_files=False
+    )
 
-df = read_data(file_selector)
-columns = [] if df is None else df.columns
+    df = read_data(file_selector)
+    columns = [] if df is None else df.columns
 
-target_selector = col3.selectbox("Select target", columns)
-feature_selector = col2.multiselect(
-    "Select features", [i for i in columns if i != target_selector]
-)
+    target_selector = col3.selectbox("Select target", columns)
+    feature_selector = col2.multiselect(
+        "Select features", [i for i in columns if i != target_selector]
+    )
 
+    return df, feature_selector, target_selector
+
+
+df, features, target = render_input_training_data_component()
 if df is not None:
-    render_data_component(df, feature_selector, target_selector)
-    preprocessing_transformer = render_preprocessing_component(df, feature_selector)
+    render_data_component(df, features, target)
+    transformer = render_preprocessing_component(df, features)
