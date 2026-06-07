@@ -9,6 +9,19 @@ regression models without writing model-specific code.
 uv run streamlit run mlstudio/main.py
 ```
 
+## Architecture
+
+The codebase has two explicit layers:
+
+- `mlstudio/backend/` contains data loading, preprocessing, model definitions,
+  evaluation, artifact serialization, and the train/validate/predict workflows.
+  It has no Streamlit dependency.
+- `mlstudio/frontend/` contains Streamlit pages and reusable rendering
+  components. Pages gather user input, call one backend workflow, and render
+  the returned result.
+
+`mlstudio/main.py` is only the application entry point.
+
 ## Workflows
 
 ### Training

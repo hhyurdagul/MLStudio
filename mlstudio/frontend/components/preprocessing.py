@@ -2,8 +2,8 @@ import polars as pl
 import streamlit as st
 
 
-def render_preprocessing_component(
-    preprocessing_df: pl.DataFrame,
+def render_preprocessing_config(
+    preprocessing: pl.DataFrame,
     *,
     key_prefix: str,
 ) -> pl.DataFrame:
@@ -12,11 +12,11 @@ def render_preprocessing_component(
         key=f"{key_prefix}_customize_preprocessing",
     )
     if not customize:
-        st.dataframe(preprocessing_df, hide_index=True)
-        return preprocessing_df
+        st.dataframe(preprocessing, hide_index=True)
+        return preprocessing
 
     string_steps = st.data_editor(
-        preprocessing_df.filter(pl.col("Type") == "String"),
+        preprocessing.filter(pl.col("Type") == "String"),
         disabled=["Variable", "Type", "Unique Count"],
         column_order=["Variable", "Preprocessing"],
         column_config={
@@ -30,7 +30,7 @@ def render_preprocessing_component(
         hide_index=True,
     )
     numeric_steps = st.data_editor(
-        preprocessing_df.filter(pl.col("Type").is_in(["Numeric", "Boolean"])),
+        preprocessing.filter(pl.col("Type").is_in(["Numeric", "Boolean"])),
         disabled=["Variable", "Type", "Unique Count"],
         column_order=["Variable", "Preprocessing"],
         column_config={

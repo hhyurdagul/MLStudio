@@ -2,7 +2,7 @@ import unittest
 
 import polars as pl
 
-from mlstudio.ml.data import (
+from mlstudio.backend.preprocessing import (
     create_preprocessing_transformer,
     get_preprocessing_data,
 )

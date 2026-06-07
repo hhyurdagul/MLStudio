@@ -6,15 +6,6 @@ from sklearn.preprocessing import (
     OrdinalEncoder,
     StandardScaler,
 )
-from streamlit.runtime.uploaded_file_manager import UploadedFile
-
-
-def read_data(data: UploadedFile | None) -> pl.DataFrame | None:
-    if data is None:
-        return None
-    if data.name.lower().endswith(".csv"):
-        return pl.read_csv(data)
-    return pl.read_excel(data)
 
 
 def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
@@ -27,9 +18,7 @@ def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
     )
     unsupported = [column for column in df.columns if column not in supported_columns]
     if unsupported:
-        raise ValueError(
-            "Unsupported feature types for: " + ", ".join(unsupported)
-        )
+        raise ValueError("Unsupported feature types for: " + ", ".join(unsupported))
 
     return (
         pl.DataFrame(
@@ -71,38 +60,27 @@ def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def create_preprocessing_transformer(
-    preprocessing_df: pl.DataFrame,
+    preprocessing: pl.DataFrame,
 ) -> ColumnTransformer:
+    def variables(step: str) -> list[str]:
+        return preprocessing.filter(pl.col("Preprocessing") == step)[
+            "Variable"
+        ].to_list()
+
     return ColumnTransformer(
         [
             (
                 "OneHotEncoder",
                 OneHotEncoder(handle_unknown="ignore", sparse_output=False),
-                preprocessing_df.filter(pl.col("Preprocessing") == "OneHotEncoder")[
-                    "Variable"
-                ].to_list(),
+                variables("OneHotEncoder"),
             ),
             (
                 "OrdinalEncoder",
                 OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1),
-                preprocessing_df.filter(pl.col("Preprocessing") == "OrdinalEncoder")[
-                    "Variable"
-                ].to_list(),
+                variables("OrdinalEncoder"),
             ),
-            (
-                "StandardScaler",
-                StandardScaler(),
-                preprocessing_df.filter(pl.col("Preprocessing") == "StandardScaler")[
-                    "Variable"
-                ].to_list(),
-            ),
-            (
-                "MinMaxScaler",
-                MinMaxScaler(),
-                preprocessing_df.filter(pl.col("Preprocessing") == "MinMaxScaler")[
-                    "Variable"
-                ].to_list(),
-            ),
+            ("StandardScaler", StandardScaler(), variables("StandardScaler")),
+            ("MinMaxScaler", MinMaxScaler(), variables("MinMaxScaler")),
         ],
         remainder="passthrough",
         verbose_feature_names_out=False,

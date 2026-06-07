@@ -33,9 +33,7 @@ class ModelDefinition:
     create_estimator: Callable[[dict[str, ParameterValue]], BaseEstimator]
 
 
-def _create_random_forest(
-    parameters: dict[str, ParameterValue],
-) -> BaseEstimator:
+def _create_random_forest(parameters: dict[str, ParameterValue]) -> BaseEstimator:
     return RandomForestRegressor(
         **parameters,
         random_state=42,
@@ -43,9 +41,7 @@ def _create_random_forest(
     )
 
 
-def _create_gradient_boosting(
-    parameters: dict[str, ParameterValue],
-) -> BaseEstimator:
+def _create_gradient_boosting(parameters: dict[str, ParameterValue]) -> BaseEstimator:
     return GradientBoostingRegressor(
         **parameters,
         random_state=42,
@@ -172,9 +168,7 @@ def get_model_definitions() -> dict[str, ModelDefinition]:
     return MODEL_REGISTRY
 
 
-def format_parameter_value(
-    parameter: ModelParameter,
-) -> Callable[[Any], str]:
+def format_parameter_value(parameter: ModelParameter) -> Callable[[Any], str]:
     def formatter(value: Any) -> str:
         if value is None and parameter.none_label is not None:
             return parameter.none_label
