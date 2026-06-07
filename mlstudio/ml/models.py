@@ -31,8 +31,6 @@ class ModelDefinition:
     label: str
     parameters: tuple[ModelParameter, ...]
     create_estimator: Callable[[dict[str, ParameterValue]], BaseEstimator]
-    target_type: Literal["numeric"] = "numeric"
-    metric_name: str = "R²"
 
 
 def _create_random_forest(
@@ -62,7 +60,7 @@ MODEL_REGISTRY: dict[str, ModelDefinition] = {
     model.key: model
     for model in (
         ModelDefinition(
-            key="random_forest_regressor",
+            key="random_forest",
             label="Random Forest Regressor",
             create_estimator=_create_random_forest,
             parameters=(
@@ -101,7 +99,7 @@ MODEL_REGISTRY: dict[str, ModelDefinition] = {
             ),
         ),
         ModelDefinition(
-            key="gradient_boosting_regressor",
+            key="gradient_boosting",
             label="Gradient Boosting Regressor",
             create_estimator=_create_gradient_boosting,
             parameters=(
@@ -141,7 +139,7 @@ MODEL_REGISTRY: dict[str, ModelDefinition] = {
             ),
         ),
         ModelDefinition(
-            key="ridge_regression",
+            key="ridge",
             label="Ridge Regression",
             create_estimator=_create_ridge,
             parameters=(
@@ -170,8 +168,8 @@ MODEL_REGISTRY: dict[str, ModelDefinition] = {
 }
 
 
-def get_model_definitions() -> tuple[ModelDefinition, ...]:
-    return tuple(MODEL_REGISTRY.values())
+def get_model_definitions() -> dict[str, ModelDefinition]:
+    return MODEL_REGISTRY
 
 
 def format_parameter_value(

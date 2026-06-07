@@ -10,16 +10,27 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
 def read_data(data: UploadedFile | None) -> pl.DataFrame | None:
-    return (
-        None
-        if data is None
-        else pl.read_csv(data)
-        if data.name.endswith(".csv")
-        else pl.read_excel(data)
-    )
+    if data is None:
+        return None
+    if data.name.lower().endswith(".csv"):
+        return pl.read_csv(data)
+    return pl.read_excel(data)
 
 
 def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
+    supported_columns = set(
+        df.select(
+            pl.selectors.string(include_categorical=True)
+            | pl.selectors.numeric()
+            | pl.selectors.boolean()
+        ).columns
+    )
+    unsupported = [column for column in df.columns if column not in supported_columns]
+    if unsupported:
+        raise ValueError(
+            "Unsupported feature types for: " + ", ".join(unsupported)
+        )
+
     return (
         pl.DataFrame(
             schema={
@@ -46,6 +57,14 @@ def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
             .with_columns(
                 pl.lit("Numeric").alias("Type"),
                 pl.lit("StandardScaler").alias("Preprocessing"),
+            )
+        )
+        .vstack(
+            df.select(pl.selectors.boolean().n_unique())
+            .unpivot(variable_name="Variable", value_name="Unique Count")
+            .with_columns(
+                pl.lit("Boolean").alias("Type"),
+                pl.lit("None").alias("Preprocessing"),
             )
         )
     ).select("Variable", "Type", "Unique Count", "Preprocessing")
@@ -86,14 +105,5 @@ def create_preprocessing_transformer(
             ),
         ],
         remainder="passthrough",
-    )
-
-
-def create_transformer_and_transform_data(
-    df: pl.DataFrame, preprocessing_df: pl.DataFrame
-) -> tuple[ColumnTransformer, pl.DataFrame]:
-    transformer = create_preprocessing_transformer(preprocessing_df)
-    return transformer, pl.DataFrame(
-        transformer.fit_transform(df),
-        schema=list(transformer.get_feature_names_out()),
+        verbose_feature_names_out=False,
     )

@@ -1,51 +1,46 @@
-import streamlit as st
 import polars as pl
+import streamlit as st
+
 
 def render_preprocessing_component(
     preprocessing_df: pl.DataFrame,
+    *,
+    key_prefix: str,
 ) -> pl.DataFrame:
-    is_customized = st.checkbox("Customize preprocessing")
+    customize = st.checkbox(
+        "Customize preprocessing",
+        key=f"{key_prefix}_customize_preprocessing",
+    )
+    if not customize:
+        st.dataframe(preprocessing_df, hide_index=True)
+        return preprocessing_df
 
-    st.write("Selected Preprocessing Steps")
-    if is_customized:
-        with st.container(border=True):
-            st.write("Customize Encoding")
-            st.caption("Click on preprocessing values to make changes")
-            _temp_df_1 = st.data_editor(
-                preprocessing_df.filter(pl.col("Type") == "String"),
-                disabled=["Variable", "Type", "Unique Count"],
-                column_order=["Variable", "Preprocessing"],
-                column_config={
-                    "Preprocessing": st.column_config.SelectboxColumn(
-                        help="Preprocessing type of variable",
-                        width="medium",
-                        options=["OrdinalEncoder", "OneHotEncoder"],
-                        required=True,
-                    )
-                },
+    string_steps = st.data_editor(
+        preprocessing_df.filter(pl.col("Type") == "String"),
+        disabled=["Variable", "Type", "Unique Count"],
+        column_order=["Variable", "Preprocessing"],
+        column_config={
+            "Preprocessing": st.column_config.SelectboxColumn(
+                "Preprocessing",
+                options=["OrdinalEncoder", "OneHotEncoder"],
+                required=True,
             )
-
-            st.write("Customize Scaling")
-            st.caption("Click on preprocessing values to make changes")
-            _temp_df_2 = st.data_editor(
-                preprocessing_df.filter(pl.col("Type") == "Numeric"),
-                disabled=["Variable", "Type", "Unique Count"],
-                column_order=["Variable", "Preprocessing"],
-                column_config={
-                    "Preprocessing": st.column_config.SelectboxColumn(
-                        help="Preprocessing type of variable",
-                        width="medium",
-                        options=["StandardScaler", "MinMaxScaler", "None"],
-                        required=True,
-                    )
-                },
+        },
+        key=f"{key_prefix}_string_preprocessing",
+        hide_index=True,
+    )
+    numeric_steps = st.data_editor(
+        preprocessing_df.filter(pl.col("Type").is_in(["Numeric", "Boolean"])),
+        disabled=["Variable", "Type", "Unique Count"],
+        column_order=["Variable", "Preprocessing"],
+        column_config={
+            "Preprocessing": st.column_config.SelectboxColumn(
+                "Preprocessing",
+                options=["StandardScaler", "MinMaxScaler", "None"],
+                required=True,
             )
-
-            preprocessing_df = _temp_df_1.vstack(_temp_df_2)
-
-    else:
-        st.dataframe(preprocessing_df)
-    return preprocessing_df
-
-
-
+        },
+        key=f"{key_prefix}_numeric_preprocessing",
+        hide_index=True,
+    )
+    return pl.DataFrame(string_steps).vstack(pl.DataFrame(numeric_steps))

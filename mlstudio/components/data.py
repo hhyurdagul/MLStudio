@@ -1,38 +1,66 @@
-from streamlit.runtime.uploaded_file_manager import UploadedFile
-from typing import Callable
-import streamlit as st
+from collections.abc import Callable
+
 import polars as pl
+import streamlit as st
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
-def render_input_training_data_component(
+def render_dataset_selector(
+    label: str,
     read_data: Callable[[UploadedFile | None], pl.DataFrame | None],
-) -> tuple[pl.DataFrame | None, list[str], str | None]:
-    col1, col2, col3 = st.columns([6, 7, 6])
-    file_selector = col1.file_uploader(
-        "Upload Train File", type=[".csv", ".xlsx"], accept_multiple_files=False
+    *,
+    key: str,
+) -> pl.DataFrame | None:
+    uploaded_file = st.file_uploader(
+        label,
+        type=["csv", "xlsx"],
+        accept_multiple_files=False,
+        key=key,
     )
+    if uploaded_file is None:
+        return None
+    try:
+        return read_data(uploaded_file)
+    except Exception as error:
+        st.error(f"Could not read {label.lower()}: {error}")
+        return None
 
-    df = read_data(file_selector)
-    columns = [] if df is None else df.columns
 
-    target_selector = col3.selectbox("Select target", columns)
-    feature_selector = col2.multiselect(
-        "Select features", [i for i in columns if i != target_selector]
+def render_feature_target_selector(
+    df: pl.DataFrame,
+    *,
+    key_prefix: str,
+) -> tuple[list[str], str]:
+    feature_column, target_column = st.columns(2)
+    target = target_column.selectbox(
+        "Target",
+        df.columns,
+        key=f"{key_prefix}_target",
     )
+    available_features = [column for column in df.columns if column != target]
+    features = feature_column.multiselect(
+        "Features",
+        available_features,
+        default=[],
+        key=f"{key_prefix}_features",
+    )
+    return features, target
 
-    return df, feature_selector, target_selector
 
+def render_data_preview(
+    df: pl.DataFrame,
+    features: list[str],
+    target: str | None = None,
+) -> None:
+    selected_columns = list(features)
+    loaded, selected, selected_2 = st.columns([3, 3, 1])
 
-def render_data_component(df: pl.DataFrame, features: list[str], target: str) -> None:
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write("Loaded Data")
-        st.dataframe(df)
-    with col2:
-        st.write("Selected Training Data")
-        st.dataframe(
-            df.select(pl.col(features + [target]))
-            .to_pandas()
-            .style.map(lambda _: "color: darkorange;", subset=[target]),
-            hide_index=True,
-        )
+    loaded.write("Loaded data")
+    loaded.dataframe(df, hide_index=True)
+
+    selected.write("Selected features")
+    selected.dataframe(df.select(selected_columns), hide_index=True)
+
+    if target is not None and target not in selected_columns:
+        selected_2.write("Selected target")
+        selected_2.dataframe(df.select(target), hide_index=True)
