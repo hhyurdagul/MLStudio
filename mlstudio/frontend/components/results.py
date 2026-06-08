@@ -64,7 +64,7 @@ def render_processed_data(processed: ProcessedData) -> None:
             st.dataframe(processed.model_input, hide_index=True)
 
 
-def render_predictions(data: pl.DataFrame, *, key: str) -> None:
+def render_predictions(data: pl.DataFrame) -> None:
     data_tab, graph_tab = st.tabs(["Data", "Graph"])
     with data_tab:
         st.dataframe(data, hide_index=True)
@@ -73,7 +73,6 @@ def render_predictions(data: pl.DataFrame, *, key: str) -> None:
             data=data.write_csv().encode(),
             file_name="predictions.csv",
             mime="text/csv",
-            key=key,
             on_click="ignore",
         )
     with graph_tab:

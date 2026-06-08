@@ -19,19 +19,18 @@ from mlstudio.frontend.components import (
     render_predictions,
     render_preprocessing_config,
 )
-from mlstudio.frontend.plugins import render_pipeline_plugins
+from mlstudio.plugins.feature_selection import render_pipeline_step
 
 
 def render_validation_page() -> None:
     st.header("Validation")
-    data = render_dataset_selector("Upload training data", key="validation_data")
+    data = render_dataset_selector("Upload training data")
     if data is None:
         st.info("Upload training data to validate a model.")
         return
 
     features, target = render_feature_target_selector(
         data,
-        key_prefix="validation",
     )
     if not features:
         st.info("Select at least one feature to configure validation.")
@@ -41,7 +40,6 @@ def render_validation_page() -> None:
     strategy = strategy_column.selectbox(
         "Validation strategy",
         ["Random split", "Last split", "Cross-validation"],
-        key="validation_strategy",
     )
     if strategy == "Cross-validation":
         folds = value_column.slider(
@@ -49,7 +47,6 @@ def render_validation_page() -> None:
             2,
             10,
             5,
-            key="validation_folds",
         )
         validation_percent = 20
     else:
@@ -58,29 +55,25 @@ def render_validation_page() -> None:
             1,
             50,
             20,
-            key="validation_percent",
         )
         folds = 5
 
     try:
         preprocessing = render_preprocessing_config(
             get_preprocessing_data(data.select(features)),
-            key_prefix="validation",
         )
     except ValueError as error:
         st.error(str(error))
         return
 
-    pipeline_steps = render_pipeline_plugins(
-        len(features),
-        key_prefix="validation",
+    feature_selection = render_pipeline_step(
+        feature_count=len(features)
     )
-    model, model_is_valid = render_model_config(key_prefix="validation")
+    model, model_is_valid = render_model_config()
     if not st.button(
         f"Validate {model.definition.label}",
         type="primary",
         disabled=not model_is_valid,
-        key="validate_model",
     ):
         return
 
@@ -95,7 +88,9 @@ def render_validation_page() -> None:
                 strategy=cast(ValidationStrategy, strategy),
                 validation_percent=validation_percent,
                 folds=folds,
-                pipeline_steps=pipeline_steps,
+                pipeline_steps=(
+                    (feature_selection,) if feature_selection is not None else ()
+                ),
             )
         if isinstance(result.metrics, CrossValidationMetrics):
             render_cross_validation_metrics(result.metrics)
@@ -106,7 +101,6 @@ def render_validation_page() -> None:
             render_processed_data(result.prediction.processed)
             render_predictions(
                 result.prediction.data,
-                key="download_validation_predictions",
             )
     except Exception as error:
         st.error(f"Validation failed: {error}")

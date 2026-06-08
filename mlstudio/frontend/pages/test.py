@@ -17,10 +17,9 @@ def render_test_page() -> None:
         model_file = st.file_uploader(
             "Upload model bundle",
             type=["joblib"],
-            key="test_model",
         )
     with data_column:
-        test_data = render_dataset_selector("Upload test data", key="test_data")
+        test_data = render_dataset_selector("Upload test data")
     if model_file is None or test_data is None:
         st.info("Upload a model bundle and test data to run predictions.")
         return
@@ -35,7 +34,7 @@ def render_test_page() -> None:
         st.error(f"Could not load model bundle: {error}")
         return
 
-    if not st.button("Run test predictions", type="primary", key="run_test"):
+    if not st.button("Run test predictions", type="primary"):
         return
 
     try:
@@ -44,6 +43,6 @@ def render_test_page() -> None:
         if result.metrics is not None:
             render_metrics(result.metrics)
         render_processed_data(result.processed)
-        render_predictions(result.data, key="download_test_predictions")
+        render_predictions(result.data)
     except Exception as error:
         st.error(f"Prediction failed: {error}")

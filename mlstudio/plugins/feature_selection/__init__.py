@@ -19,12 +19,9 @@ SCORE_FUNCTIONS: dict[str, ScoreFunction] = {
 
 def render_pipeline_step(
     feature_count: int,
-    *,
-    key_prefix: str,
 ) -> PipelineStep | None:
     enabled = st.checkbox(
         "Use feature selection",
-        key=f"{key_prefix}_use_feature_selection",
     )
     if not enabled:
         return None
@@ -33,7 +30,6 @@ def render_pipeline_step(
     method = method_column.selectbox(
         "Feature selection method",
         tuple(SCORE_FUNCTIONS),
-        key=f"{key_prefix}_feature_selection_method",
     )
     k = int(
         count_column.number_input(
@@ -41,7 +37,6 @@ def render_pipeline_step(
             min_value=1,
             value=min(10, feature_count),
             step=1,
-            key=f"{key_prefix}_feature_selection_k",
         )
     )
     return create_pipeline_step(method, k)

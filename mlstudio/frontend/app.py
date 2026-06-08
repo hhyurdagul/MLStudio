@@ -11,8 +11,7 @@ def run_app() -> None:
     mode = st.radio(
         "Mode",
         ["Training", "Validation", "Test"],
-        horizontal=True,
-        key="mode",
+        horizontal=True
     )
     if mode == "Training":
         render_training_page()

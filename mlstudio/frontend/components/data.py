@@ -4,12 +4,11 @@ import streamlit as st
 from mlstudio.backend import read_tabular_data
 
 
-def render_dataset_selector(label: str, *, key: str) -> pl.DataFrame | None:
+def render_dataset_selector(label: str) -> pl.DataFrame | None:
     uploaded_file = st.file_uploader(
         label,
         type=["csv", "xlsx"],
         accept_multiple_files=False,
-        key=key,
     )
     if uploaded_file is None:
         return None
@@ -22,20 +21,16 @@ def render_dataset_selector(label: str, *, key: str) -> pl.DataFrame | None:
 
 def render_feature_target_selector(
     data: pl.DataFrame,
-    *,
-    key_prefix: str,
 ) -> tuple[list[str], str]:
     feature_column, target_column = st.columns(2)
     target = target_column.selectbox(
         "Target",
         data.columns,
-        key=f"{key_prefix}_target",
     )
     features = feature_column.multiselect(
         "Features",
         [column for column in data.columns if column != target],
         default=[],
-        key=f"{key_prefix}_features",
     )
     return features, target
 

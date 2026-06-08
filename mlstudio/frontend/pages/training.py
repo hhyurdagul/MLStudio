@@ -19,7 +19,7 @@ from mlstudio.frontend.components import (
     render_predictions,
     render_preprocessing_config,
 )
-from mlstudio.frontend.plugins import render_pipeline_plugins
+from mlstudio.plugins.feature_selection import render_pipeline_step
 
 
 def render_training_page() -> None:
@@ -28,12 +28,10 @@ def render_training_page() -> None:
     with training_column:
         training_data = render_dataset_selector(
             "Upload training data",
-            key="training_data",
         )
     with test_column:
         test_data = render_dataset_selector(
             "Upload test data",
-            key="training_test_data",
         )
     if training_data is None:
         st.info("Upload training data to configure a model.")
@@ -41,7 +39,6 @@ def render_training_page() -> None:
 
     features, target = render_feature_target_selector(
         training_data,
-        key_prefix="training",
     )
     with st.expander("Data preview"):
         render_data_preview(training_data, features, target)
@@ -53,35 +50,30 @@ def render_training_page() -> None:
     row_selection = selection_column.selectbox(
         "Training rows",
         ["Random percent", "Last percent"],
-        key="training_row_method",
     )
     training_percent = percent_column.slider(
         "Percent used for training",
         1,
         100,
         100,
-        key="training_percent",
     )
 
     try:
         preprocessing = render_preprocessing_config(
             get_preprocessing_data(training_data.select(features)),
-            key_prefix="training",
         )
     except ValueError as error:
         st.error(str(error))
         return
 
-    pipeline_steps = render_pipeline_plugins(
-        len(features),
-        key_prefix="training",
+    feature_selection = render_pipeline_step(
+        feature_count=len(features),
     )
-    model, model_is_valid = render_model_config(key_prefix="training")
+    model, model_is_valid = render_model_config()
     if not st.button(
         f"Train {model.definition.label}",
         type="primary",
         disabled=not model_is_valid,
-        key="train_model",
     ):
         return
 
@@ -96,7 +88,9 @@ def render_training_page() -> None:
                 model=model,
                 row_selection=cast(RowSelection, row_selection),
                 training_percent=training_percent,
-                pipeline_steps=pipeline_steps,
+                pipeline_steps=(
+                    (feature_selection,) if feature_selection is not None else ()
+                ),
             )
         st.success(f"Trained on {result.trained_rows} rows.")
         render_grid_search(result.grid_search)
@@ -105,7 +99,6 @@ def render_training_page() -> None:
             data=serialize_artifact(result.artifact),
             file_name="mlstudio-model.joblib",
             mime="application/octet-stream",
-            key="download_model",
             on_click="ignore",
         )
         if result.prediction is not None:
@@ -114,7 +107,6 @@ def render_training_page() -> None:
             render_processed_data(result.prediction.processed)
             render_predictions(
                 result.prediction.data,
-                key="download_training_predictions",
             )
     except Exception as error:
         st.error(f"Training failed: {error}")

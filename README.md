@@ -57,8 +57,10 @@ Grid search is optional for all models.
 Feature selection is supplied by the optional
 `mlstudio/plugins/feature_selection/` plugin. It adds the Training and
 Validation controls plus a `SelectKBest` pipeline step with F Regression, MRMR
-Regression, and Relief Regression scoring. Deleting that plugin directory
-removes the whole feature without changing the core backend or frontend pages.
+Regression, and Relief Regression scoring. It is explicitly imported by the
+Training and Validation pages. To remove it, delete the plugin directory and
+remove those two imports and calls; no discovery framework or backend changes
+are required.
 
 ### Test
 
