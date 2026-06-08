@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 import polars as pl
+from sklearn.base import BaseEstimator
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 
@@ -10,6 +11,12 @@ from .models import ModelDefinition, ParameterValue
 RowSelection = Literal["Random percent", "Last percent"]
 ValidationStrategy = Literal["Random split", "Last split", "Cross-validation"]
 FittedEstimator = Pipeline | GridSearchCV
+
+
+@dataclass(frozen=True)
+class PipelineStep:
+    name: str
+    transformer: BaseEstimator | Literal["passthrough"]
 
 
 @dataclass(frozen=True)
@@ -58,9 +65,17 @@ class ModelArtifact:
 
 
 @dataclass(frozen=True)
+class ProcessedData:
+    preprocessed: pl.DataFrame
+    model_input: pl.DataFrame
+    selected_features: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class PredictionResult:
     data: pl.DataFrame
     metrics: RegressionMetrics | None
+    processed: ProcessedData
 
 
 @dataclass(frozen=True)

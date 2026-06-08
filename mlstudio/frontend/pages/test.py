@@ -4,6 +4,7 @@ from mlstudio.backend import deserialize_artifact, predict
 from mlstudio.frontend.components import (
     render_dataset_selector,
     render_metrics,
+    render_processed_data,
     render_predictions,
 )
 
@@ -42,6 +43,7 @@ def render_test_page() -> None:
             result = predict(artifact, test_data)
         if result.metrics is not None:
             render_metrics(result.metrics)
+        render_processed_data(result.processed)
         render_predictions(result.data, key="download_test_predictions")
     except Exception as error:
         st.error(f"Prediction failed: {error}")

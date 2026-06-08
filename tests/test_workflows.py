@@ -2,9 +2,12 @@ import unittest
 
 import numpy as np
 import polars as pl
+from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.pipeline import Pipeline
 
 from mlstudio.backend import (
     ModelConfig,
+    PipelineStep,
     deserialize_artifact,
     get_model_definitions,
     get_preprocessing_data,
@@ -83,6 +86,13 @@ class WorkflowTests(unittest.TestCase):
             result.prediction.data.columns if result.prediction else [],
             ["Real", "Prediction"],
         )
+        assert result.prediction is not None
+        self.assertEqual(result.prediction.processed.preprocessed.columns, ["feature"])
+        self.assertEqual(result.prediction.processed.model_input.columns, ["feature"])
+        self.assertEqual(
+            result.prediction.processed.selected_features,
+            ("feature",),
+        )
 
     def test_artifact_round_trip_supports_unlabeled_prediction(self) -> None:
         result = train(
@@ -145,6 +155,64 @@ class WorkflowTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "Missing required feature"):
             predict(result.artifact, self.data.select("target"))
+
+    def test_optional_pipeline_step_is_fitted_between_preprocessing_and_model(
+        self,
+    ) -> None:
+        data = self.data.with_columns(
+            pl.Series("noise", [float(value % 3) for value in range(20)])
+        )
+        result = train(
+            training_data=data,
+            test_data=None,
+            features=["feature", "noise"],
+            target="target",
+            preprocessing=get_preprocessing_data(data.select("feature", "noise")),
+            model=self.model,
+            row_selection="Random percent",
+            training_percent=100,
+            pipeline_steps=(
+                PipelineStep(
+                    "test_selection",
+                    SelectKBest(score_func=f_regression, k=1),
+                ),
+            ),
+        )
+
+        pipeline = result.artifact.pipeline
+        assert isinstance(pipeline, Pipeline)
+        selector = pipeline.named_steps["test_selection"]
+        self.assertEqual(selector.get_support().sum(), 1)
+
+        prediction = predict(result.artifact, data.tail(4))
+        self.assertEqual(prediction.processed.preprocessed.width, 2)
+        self.assertEqual(prediction.processed.model_input.width, 1)
+        self.assertEqual(len(prediction.processed.selected_features), 1)
+
+    def test_processed_data_contains_encoded_feature_names(self) -> None:
+        data = pl.DataFrame(
+            {
+                "number": [float(value) for value in range(20)],
+                "category": ["a", "b"] * 10,
+                "target": [float(value * 2) for value in range(20)],
+            }
+        )
+        result = train(
+            training_data=data,
+            test_data=data.tail(4),
+            features=["number", "category"],
+            target="target",
+            preprocessing=get_preprocessing_data(data.select("number", "category")),
+            model=self.model,
+            row_selection="Random percent",
+            training_percent=100,
+        )
+
+        assert result.prediction is not None
+        encoded_columns = result.prediction.processed.preprocessed.columns
+        self.assertIn("category_a", encoded_columns)
+        self.assertIn("category_b", encoded_columns)
+        self.assertIn("number", encoded_columns)
 
 
 if __name__ == "__main__":

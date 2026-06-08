@@ -9,6 +9,7 @@ from .results import (
     render_cross_validation_metrics,
     render_grid_search,
     render_metrics,
+    render_processed_data,
     render_predictions,
 )
 
@@ -20,6 +21,7 @@ __all__ = [
     "render_grid_search",
     "render_metrics",
     "render_model_config",
+    "render_processed_data",
     "render_predictions",
     "render_preprocessing_config",
 ]

@@ -15,9 +15,11 @@ from mlstudio.frontend.components import (
     render_grid_search,
     render_metrics,
     render_model_config,
+    render_processed_data,
     render_predictions,
     render_preprocessing_config,
 )
+from mlstudio.frontend.plugins import render_pipeline_plugins
 
 
 def render_training_page() -> None:
@@ -70,6 +72,10 @@ def render_training_page() -> None:
         st.error(str(error))
         return
 
+    pipeline_steps = render_pipeline_plugins(
+        len(features),
+        key_prefix="training",
+    )
     model, model_is_valid = render_model_config(key_prefix="training")
     if not st.button(
         f"Train {model.definition.label}",
@@ -90,6 +96,7 @@ def render_training_page() -> None:
                 model=model,
                 row_selection=cast(RowSelection, row_selection),
                 training_percent=training_percent,
+                pipeline_steps=pipeline_steps,
             )
         st.success(f"Trained on {result.trained_rows} rows.")
         render_grid_search(result.grid_search)
@@ -104,6 +111,7 @@ def render_training_page() -> None:
         if result.prediction is not None:
             if result.prediction.metrics is not None:
                 render_metrics(result.prediction.metrics)
+            render_processed_data(result.prediction.processed)
             render_predictions(
                 result.prediction.data,
                 key="download_training_predictions",

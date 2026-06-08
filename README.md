@@ -40,6 +40,10 @@ downloadable `.joblib` bundle. When test data is supplied, the app produces a
 prediction preview and CSV download. R², MAE, RMSE, and MAPE are shown when the
 test data contains the selected target.
 
+Prediction results also include a processed-data preview showing the encoded
+data after preprocessing and the final model input after optional pipeline
+plugins, including the selected feature names.
+
 ### Validation
 
 Upload one labeled dataset and choose one evaluation strategy:
@@ -49,6 +53,12 @@ Upload one labeled dataset and choose one evaluation strategy:
 - **Cross-validation:** run shuffled K-fold cross-validation.
 
 Grid search is optional for all models.
+
+Feature selection is supplied by the optional
+`mlstudio/plugins/feature_selection/` plugin. It adds the Training and
+Validation controls plus a `SelectKBest` pipeline step with F Regression, MRMR
+Regression, and Relief Regression scoring. Deleting that plugin directory
+removes the whole feature without changing the core backend or frontend pages.
 
 ### Test
 

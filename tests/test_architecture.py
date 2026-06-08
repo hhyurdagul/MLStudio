@@ -6,7 +6,7 @@ from pathlib import Path
 class ArchitectureTests(unittest.TestCase):
     def test_backend_does_not_import_frontend_or_streamlit(self) -> None:
         backend = Path("mlstudio/backend")
-        forbidden = ("streamlit", "mlstudio.frontend")
+        forbidden = ("streamlit", "mlstudio.frontend", "mlstudio.plugins")
 
         for path in backend.glob("*.py"):
             tree = ast.parse(path.read_text())

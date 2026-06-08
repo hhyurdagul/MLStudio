@@ -5,6 +5,7 @@ import streamlit as st
 from mlstudio.backend.types import (
     CrossValidationMetrics,
     GridSearchSummary,
+    ProcessedData,
     RegressionMetrics,
 )
 
@@ -43,6 +44,24 @@ def render_grid_search(summary: GridSearchSummary | None) -> None:
     st.write("Best grid-search parameters")
     st.json(summary.best_parameters)
     st.metric("Best cross-validation R²", f"{summary.best_score:.4f}")
+
+
+def render_processed_data(processed: ProcessedData) -> None:
+    with st.expander("Processed data preview"):
+        preprocessing_tab, model_input_tab = st.tabs(
+            ["After preprocessing", "Model input"]
+        )
+        with preprocessing_tab:
+            st.caption(
+                f"{processed.preprocessed.width} encoded feature"
+                f"{'' if processed.preprocessed.width == 1 else 's'}"
+            )
+            st.dataframe(processed.preprocessed, hide_index=True)
+        with model_input_tab:
+            st.caption(
+                "Final features: " + ", ".join(processed.selected_features)
+            )
+            st.dataframe(processed.model_input, hide_index=True)
 
 
 def render_predictions(data: pl.DataFrame, *, key: str) -> None:

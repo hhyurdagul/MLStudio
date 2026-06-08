@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import polars as pl
 from sklearn.model_selection import GridSearchCV
@@ -17,7 +19,9 @@ from .types import (
     GridSearchSummary,
     ModelArtifact,
     ModelConfig,
+    PipelineStep,
     PredictionResult,
+    ProcessedData,
     RowSelection,
     TrainingResult,
     ValidationResult,
@@ -34,6 +38,7 @@ def train(
     model: ModelConfig,
     row_selection: RowSelection,
     training_percent: int,
+    pipeline_steps: tuple[PipelineStep, ...] = (),
 ) -> TrainingResult:
     _validate_labeled_data(training_data, features, target)
     selected_data = select_training_rows(
@@ -43,7 +48,7 @@ def train(
     )
     _validate_grid_folds(model, selected_data.height)
 
-    estimator = _create_estimator(preprocessing, model)
+    estimator = _create_estimator(preprocessing, model, pipeline_steps)
     estimator.fit(selected_data.select(features), selected_data[target])
     artifact = ModelArtifact(
         version=ARTIFACT_VERSION,
@@ -76,9 +81,10 @@ def validate(
     strategy: ValidationStrategy,
     validation_percent: int,
     folds: int,
+    pipeline_steps: tuple[PipelineStep, ...] = (),
 ) -> ValidationResult:
     _validate_labeled_data(data, features, target)
-    estimator = _create_estimator(preprocessing, model)
+    estimator = _create_estimator(preprocessing, model, pipeline_steps)
 
     if strategy == "Cross-validation":
         metrics = cross_validate_estimator(
@@ -101,6 +107,7 @@ def validate(
     prediction = PredictionResult(
         data=_prediction_frame(validation_data, predictions, target),
         metrics=metrics,
+        processed=_processed_data(estimator, validation_data.select(features)),
     )
     return ValidationResult(
         metrics=metrics,
@@ -116,6 +123,7 @@ def predict(artifact: ModelArtifact, data: pl.DataFrame) -> PredictionResult:
 def _create_estimator(
     preprocessing: pl.DataFrame,
     config: ModelConfig,
+    pipeline_steps: tuple[PipelineStep, ...],
 ) -> Pipeline | GridSearchCV:
     pipeline = Pipeline(
         [
@@ -123,6 +131,7 @@ def _create_estimator(
                 "preprocessing",
                 create_preprocessing_transformer(preprocessing),
             ),
+            *((step.name, step.transformer) for step in pipeline_steps),
             ("model", config.definition.create_estimator(config.parameters)),
         ]
     )
@@ -152,6 +161,10 @@ def _predict_with_artifact(
     return PredictionResult(
         data=_prediction_frame(data, predictions, artifact.target),
         metrics=metrics,
+        processed=_processed_data(
+            artifact.pipeline,
+            data.select(artifact.features),
+        ),
     )
 
 
@@ -168,6 +181,71 @@ def _prediction_frame(
             "Prediction": predictions,
         }
     )
+
+
+def _processed_data(
+    estimator: Pipeline | GridSearchCV,
+    features: pl.DataFrame,
+) -> ProcessedData:
+    pipeline = (
+        estimator.best_estimator_
+        if isinstance(estimator, GridSearchCV)
+        else estimator
+    )
+    preprocessing = pipeline.named_steps["preprocessing"]
+    transformed = preprocessing.transform(features)
+    feature_names = list(preprocessing.get_feature_names_out())
+    preprocessed = _to_frame(transformed, feature_names)
+
+    model_input = transformed
+    selected_names = feature_names
+    for name, transformer in pipeline.steps[1:-1]:
+        if transformer == "passthrough":
+            continue
+        model_input = transformer.transform(model_input)
+        selected_names = _transformed_feature_names(
+            transformer,
+            selected_names,
+            step_name=name,
+        )
+
+    return ProcessedData(
+        preprocessed=preprocessed,
+        model_input=_to_frame(model_input, selected_names),
+        selected_features=tuple(selected_names),
+    )
+
+
+def _transformed_feature_names(
+    transformer: object,
+    input_features: list[str],
+    *,
+    step_name: str,
+) -> list[str]:
+    get_support = getattr(transformer, "get_support", None)
+    if callable(get_support):
+        support = get_support()
+        return [
+            feature
+            for feature, selected in zip(input_features, support, strict=True)
+            if selected
+        ]
+
+    get_feature_names_out = getattr(transformer, "get_feature_names_out", None)
+    if callable(get_feature_names_out):
+        return list(get_feature_names_out(input_features))
+
+    output_count = getattr(transformer, "n_features_out_", len(input_features))
+    if output_count == len(input_features):
+        return input_features
+    return [f"{step_name}_{index}" for index in range(output_count)]
+
+
+def _to_frame(values: Any, columns: list[str]) -> pl.DataFrame:
+    toarray = getattr(values, "toarray", None)
+    if callable(toarray):
+        values = toarray()
+    return pl.DataFrame(values, schema=columns, orient="row")
 
 
 def _validate_labeled_data(

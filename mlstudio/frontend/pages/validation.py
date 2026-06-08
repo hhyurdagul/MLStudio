@@ -15,9 +15,11 @@ from mlstudio.frontend.components import (
     render_grid_search,
     render_metrics,
     render_model_config,
+    render_processed_data,
     render_predictions,
     render_preprocessing_config,
 )
+from mlstudio.frontend.plugins import render_pipeline_plugins
 
 
 def render_validation_page() -> None:
@@ -69,6 +71,10 @@ def render_validation_page() -> None:
         st.error(str(error))
         return
 
+    pipeline_steps = render_pipeline_plugins(
+        len(features),
+        key_prefix="validation",
+    )
     model, model_is_valid = render_model_config(key_prefix="validation")
     if not st.button(
         f"Validate {model.definition.label}",
@@ -89,6 +95,7 @@ def render_validation_page() -> None:
                 strategy=cast(ValidationStrategy, strategy),
                 validation_percent=validation_percent,
                 folds=folds,
+                pipeline_steps=pipeline_steps,
             )
         if isinstance(result.metrics, CrossValidationMetrics):
             render_cross_validation_metrics(result.metrics)
@@ -96,6 +103,7 @@ def render_validation_page() -> None:
             render_metrics(result.metrics)
         render_grid_search(result.grid_search)
         if result.prediction is not None:
+            render_processed_data(result.prediction.processed)
             render_predictions(
                 result.prediction.data,
                 key="download_validation_predictions",
