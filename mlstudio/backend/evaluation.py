@@ -4,15 +4,13 @@ import numpy as np
 import polars as pl
 from sklearn.base import BaseEstimator
 from sklearn.metrics import (
-    make_scorer,
     mean_absolute_error,
     mean_squared_error,
     r2_score,
 )
-from sklearn.model_selection import KFold, cross_validate, train_test_split
+from sklearn.model_selection import KFold, cross_val_predict, train_test_split
 
 from .types import (
-    CrossValidationMetrics,
     RegressionMetrics,
     RowSelection,
     ValidationStrategy,
@@ -93,60 +91,20 @@ def calculate_metrics(
     )
 
 
-def cross_validate_estimator(
+def cross_validation_predictions(
     estimator: BaseEstimator,
     x: pl.DataFrame,
     y: pl.Series,
     folds: int,
-) -> CrossValidationMetrics:
+) -> np.ndarray:
     if folds > x.height:
         raise ValueError("Cross-validation folds cannot exceed the number of rows.")
-    if x.height < folds * 2:
-        raise ValueError(
-            "R² cross-validation requires at least two validation rows per fold."
-        )
-
-    scores = cross_validate(
-        estimator,
-        x,
-        y,
-        cv=KFold(n_splits=folds, shuffle=True, random_state=42),
-        scoring={
-            "r2": "r2",
-            "mae": "neg_mean_absolute_error",
-            "rmse": "neg_root_mean_squared_error",
-            "mape": make_scorer(_mape_without_zero_targets, greater_is_better=False),
-        },
-        n_jobs=-1,
-    )
-    mape_values = -scores["test_mape"] * 100
-    finite_mape = mape_values[np.isfinite(mape_values)]
-    return CrossValidationMetrics(
-        r2_mean=float(np.mean(scores["test_r2"])),
-        r2_std=float(np.std(scores["test_r2"])),
-        mae_mean=float(np.mean(-scores["test_mae"])),
-        mae_std=float(np.std(-scores["test_mae"])),
-        rmse_mean=float(np.mean(-scores["test_rmse"])),
-        rmse_std=float(np.std(-scores["test_rmse"])),
-        mape_mean=float(np.mean(finite_mape)) if finite_mape.size else None,
-        mape_std=float(np.std(finite_mape)) if finite_mape.size else None,
-    )
-
-
-def _mape_without_zero_targets(
-    actual: np.ndarray,
-    predicted: np.ndarray,
-) -> float:
-    actual_values = np.asarray(actual, dtype=float)
-    predicted_values = np.asarray(predicted, dtype=float)
-    nonzero = actual_values != 0
-    if not nonzero.any():
-        return float("nan")
-    return float(
-        np.mean(
-            np.abs(
-                (actual_values[nonzero] - predicted_values[nonzero])
-                / actual_values[nonzero]
-            )
+    return np.asarray(
+        cross_val_predict(
+            estimator,
+            x,
+            y,
+            cv=KFold(n_splits=folds, shuffle=True, random_state=42),
+            n_jobs=-1,
         )
     )

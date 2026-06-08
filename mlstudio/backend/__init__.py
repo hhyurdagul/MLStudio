@@ -3,7 +3,6 @@ from .data import read_tabular_data
 from .models import get_model_definitions
 from .preprocessing import get_preprocessing_data
 from .types import (
-    CrossValidationMetrics,
     ModelArtifact,
     ModelConfig,
     PipelineStep,
@@ -18,7 +17,6 @@ from .types import (
 from .workflows import predict, train, validate
 
 __all__ = [
-    "CrossValidationMetrics",
     "ModelArtifact",
     "ModelConfig",
     "PipelineStep",

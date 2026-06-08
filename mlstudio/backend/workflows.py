@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 from .artifacts import ARTIFACT_VERSION
 from .evaluation import (
     calculate_metrics,
-    cross_validate_estimator,
+    cross_validation_predictions,
     select_training_rows,
     split_validation_data,
 )
@@ -87,13 +87,24 @@ def validate(
     estimator = _create_estimator(preprocessing, model, pipeline_steps)
 
     if strategy == "Cross-validation":
-        metrics = cross_validate_estimator(
+        predictions = cross_validation_predictions(
             estimator,
             data.select(features),
             data[target],
             folds,
         )
-        return ValidationResult(metrics, None, None)
+        metrics = calculate_metrics(data[target], predictions)
+        estimator.fit(data.select(features), data[target])
+        prediction = PredictionResult(
+            data=_prediction_frame(data, predictions, target),
+            metrics=metrics,
+            processed=_processed_data(estimator, data.select(features)),
+        )
+        return ValidationResult(
+            metrics=metrics,
+            prediction=prediction,
+            grid_search=_grid_search_summary(estimator),
+        )
 
     training_data, validation_data = split_validation_data(
         data,

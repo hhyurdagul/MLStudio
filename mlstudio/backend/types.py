@@ -37,18 +37,6 @@ class RegressionMetrics:
 
 
 @dataclass(frozen=True)
-class CrossValidationMetrics:
-    r2_mean: float
-    r2_std: float
-    mae_mean: float
-    mae_std: float
-    rmse_mean: float
-    rmse_std: float
-    mape_mean: float | None
-    mape_std: float | None
-
-
-@dataclass(frozen=True)
 class GridSearchSummary:
     best_parameters: dict[str, object]
     best_score: float
@@ -88,6 +76,6 @@ class TrainingResult:
 
 @dataclass(frozen=True)
 class ValidationResult:
-    metrics: RegressionMetrics | CrossValidationMetrics
+    metrics: RegressionMetrics
     prediction: PredictionResult | None
     grid_search: GridSearchSummary | None

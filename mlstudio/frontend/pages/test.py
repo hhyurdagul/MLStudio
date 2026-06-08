@@ -40,9 +40,9 @@ def render_test_page() -> None:
     try:
         with st.spinner("Running predictions..."):
             result = predict(artifact, test_data)
+        render_processed_data(result.processed)
         if result.metrics is not None:
             render_metrics(result.metrics)
-        render_processed_data(result.processed)
         render_predictions(result.data)
     except Exception as error:
         st.error(f"Prediction failed: {error}")

@@ -21,7 +21,7 @@ from mlstudio.backend.evaluation import (
     select_training_rows,
     split_validation_data,
 )
-from mlstudio.backend.types import CrossValidationMetrics, RegressionMetrics
+from mlstudio.backend.types import RegressionMetrics
 
 
 class WorkflowTests(unittest.TestCase):
@@ -126,7 +126,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIsInstance(result.metrics, RegressionMetrics)
         self.assertIsNotNone(result.prediction)
 
-    def test_cross_validation_returns_aggregate_metrics(self) -> None:
+    def test_cross_validation_returns_out_of_fold_predictions(self) -> None:
         result = validate(
             data=self.data,
             features=["feature"],
@@ -138,8 +138,15 @@ class WorkflowTests(unittest.TestCase):
             folds=5,
         )
 
-        self.assertIsInstance(result.metrics, CrossValidationMetrics)
-        self.assertIsNone(result.prediction)
+        self.assertIsInstance(result.metrics, RegressionMetrics)
+        self.assertIsNotNone(result.prediction)
+        assert result.prediction is not None
+        self.assertEqual(result.prediction.data.height, self.data.height)
+        self.assertEqual(result.prediction.data.columns, ["Real", "Prediction"])
+        self.assertEqual(
+            result.prediction.data["Real"].to_list(),
+            self.data["target"].to_list(),
+        )
 
     def test_prediction_rejects_missing_features(self) -> None:
         result = train(

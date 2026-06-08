@@ -3,13 +3,11 @@ from typing import cast
 import streamlit as st
 
 from mlstudio.backend import (
-    CrossValidationMetrics,
     ValidationStrategy,
     get_preprocessing_data,
     validate,
 )
 from mlstudio.frontend.components import (
-    render_cross_validation_metrics,
     render_dataset_selector,
     render_feature_target_selector,
     render_grid_search,
@@ -92,13 +90,10 @@ def render_validation_page() -> None:
                     (feature_selection,) if feature_selection is not None else ()
                 ),
             )
-        if isinstance(result.metrics, CrossValidationMetrics):
-            render_cross_validation_metrics(result.metrics)
-        else:
-            render_metrics(result.metrics)
         render_grid_search(result.grid_search)
         if result.prediction is not None:
             render_processed_data(result.prediction.processed)
+            render_metrics(result.metrics)
             render_predictions(
                 result.prediction.data,
             )

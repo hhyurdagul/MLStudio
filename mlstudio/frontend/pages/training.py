@@ -102,9 +102,9 @@ def render_training_page() -> None:
             on_click="ignore",
         )
         if result.prediction is not None:
+            render_processed_data(result.prediction.processed)
             if result.prediction.metrics is not None:
                 render_metrics(result.prediction.metrics)
-            render_processed_data(result.prediction.processed)
             render_predictions(
                 result.prediction.data,
             )
