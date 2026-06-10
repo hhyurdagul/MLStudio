@@ -22,6 +22,7 @@ from mlstudio.backend.evaluation import (
     split_validation_data,
 )
 from mlstudio.backend.types import RegressionMetrics
+from mlstudio.plugins.lookback import create_lookback_wrapper
 
 
 class WorkflowTests(unittest.TestCase):
@@ -220,6 +221,190 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("category_a", encoded_columns)
         self.assertIn("category_b", encoded_columns)
         self.assertIn("number", encoded_columns)
+
+    def test_lookback_lags_are_added_after_feature_selection(self) -> None:
+        data = self.data.with_columns(
+            pl.Series("noise", [float(value % 3) for value in range(20)])
+        )
+        result = train(
+            training_data=data,
+            test_data=data.tail(4),
+            features=["feature", "noise"],
+            target="target",
+            preprocessing=get_preprocessing_data(data.select("feature", "noise")),
+            model=self.model,
+            row_selection="Last percent",
+            training_percent=80,
+            pipeline_steps=(
+                PipelineStep(
+                    "test_selection",
+                    SelectKBest(score_func=f_regression, k=1),
+                ),
+            ),
+            estimator_wrapper=create_lookback_wrapper(3),
+        )
+
+        assert result.prediction is not None
+        self.assertEqual(
+            result.prediction.processed.selected_features[-3:],
+            ("target_lag_1", "target_lag_2", "target_lag_3"),
+        )
+        self.assertEqual(result.prediction.processed.model_input.width, 4)
+
+    def test_lookback_artifact_round_trip_resets_prediction_history(self) -> None:
+        result = train(
+            training_data=self.data,
+            test_data=None,
+            features=["feature"],
+            target="target",
+            preprocessing=self.preprocessing,
+            model=self.model,
+            row_selection="Last percent",
+            training_percent=100,
+            estimator_wrapper=create_lookback_wrapper(2),
+        )
+        artifact = deserialize_artifact(serialize_artifact(result.artifact))
+        prediction_data = self.data.tail(3).select("feature")
+
+        first = predict(artifact, prediction_data)
+        second = predict(artifact, prediction_data)
+
+        self.assertEqual(
+            first.data["Prediction"].to_list(),
+            second.data["Prediction"].to_list(),
+        )
+
+    def test_lookback_rejects_random_training_rows(self) -> None:
+        wrapper = create_lookback_wrapper(2)
+        with self.assertRaisesRegex(ValueError, "last contiguous"):
+            train(
+                training_data=self.data,
+                test_data=None,
+                features=["feature"],
+                target="target",
+                preprocessing=self.preprocessing,
+                model=self.model,
+                row_selection="Random percent",
+                training_percent=100,
+                estimator_wrapper=wrapper,
+            )
+
+    def test_lookback_cross_validation_uses_time_series_folds(self) -> None:
+        result = validate(
+            data=self.data,
+            features=["feature"],
+            target="target",
+            preprocessing=self.preprocessing,
+            model=self.model,
+            strategy="Cross-validation",
+            validation_percent=20,
+            folds=4,
+            estimator_wrapper=create_lookback_wrapper(2),
+        )
+
+        assert result.prediction is not None
+        self.assertEqual(result.prediction.data.height, 16)
+        self.assertEqual(
+            result.prediction.data["Real"].to_list(),
+            self.data.tail(16)["target"].to_list(),
+        )
+
+    def test_lookback_grid_search_tunes_wrapped_estimator(self) -> None:
+        model = ModelConfig(
+            definition=self.model.definition,
+            parameters=self.model.parameters,
+            use_grid_search=True,
+            param_grid={"model__alpha": [0.1, 1.0]},
+            cv=3,
+        )
+        result = train(
+            training_data=self.data,
+            test_data=None,
+            features=["feature"],
+            target="target",
+            preprocessing=self.preprocessing,
+            model=model,
+            row_selection="Last percent",
+            training_percent=100,
+            estimator_wrapper=create_lookback_wrapper(2),
+        )
+
+        assert result.grid_search is not None
+        self.assertIn(
+            "model__estimator__alpha",
+            result.grid_search.best_parameters,
+        )
+
+    def test_target_processing_inverse_transforms_predictions(self) -> None:
+        result = train(
+            training_data=self.data,
+            test_data=self.data.tail(3),
+            features=["feature"],
+            target="target",
+            preprocessing=self.preprocessing,
+            model=self.model,
+            row_selection="Last percent",
+            training_percent=100,
+            target_processing="StandardScaler",
+        )
+
+        assert result.prediction is not None
+        predictions = result.prediction.data["Prediction"].to_numpy()
+        self.assertGreater(float(predictions.max()), 1.0)
+
+    def test_target_processing_is_applied_to_lookback_lags(self) -> None:
+        result = train(
+            training_data=self.data,
+            test_data=self.data.tail(2),
+            features=["feature"],
+            target="target",
+            preprocessing=self.preprocessing,
+            model=self.model,
+            row_selection="Last percent",
+            training_percent=100,
+            target_processing="MinMaxScaler",
+            estimator_wrapper=create_lookback_wrapper(2),
+        )
+
+        assert result.prediction is not None
+        lag_values = result.prediction.processed.model_input.select(
+            "target_lag_1",
+            "target_lag_2",
+        ).to_numpy()
+        self.assertTrue(np.all((lag_values >= 0.0) & (lag_values <= 1.0)))
+        self.assertGreater(
+            float(result.prediction.data["Prediction"].to_numpy().max()),
+            1.0,
+        )
+
+    def test_grid_search_routes_through_target_processing_and_lookback(
+        self,
+    ) -> None:
+        model = ModelConfig(
+            definition=self.model.definition,
+            parameters=self.model.parameters,
+            use_grid_search=True,
+            param_grid={"model__alpha": [0.1, 1.0]},
+            cv=3,
+        )
+        result = train(
+            training_data=self.data,
+            test_data=None,
+            features=["feature"],
+            target="target",
+            preprocessing=self.preprocessing,
+            model=model,
+            row_selection="Last percent",
+            training_percent=100,
+            target_processing="StandardScaler",
+            estimator_wrapper=create_lookback_wrapper(2),
+        )
+
+        assert result.grid_search is not None
+        self.assertIn(
+            "model__regressor__estimator__alpha",
+            result.grid_search.best_parameters,
+        )
 
 
 if __name__ == "__main__":

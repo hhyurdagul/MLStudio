@@ -16,8 +16,10 @@ from mlstudio.frontend.components import (
     render_processed_data,
     render_predictions,
     render_preprocessing_config,
+    render_target_processing,
 )
-from mlstudio.plugins.feature_selection import render_pipeline_step
+from mlstudio.plugins.feature_selection import render_feature_selection
+from mlstudio.plugins.lookback import render_lookback
 
 
 def render_validation_page() -> None:
@@ -34,10 +36,27 @@ def render_validation_page() -> None:
         st.info("Select at least one feature to configure validation.")
         return
 
+    with st.expander("Preprocessing"):
+        try:
+            preprocessing = render_preprocessing_config(
+                get_preprocessing_data(data.select(features)),
+            )
+        except ValueError as error:
+            st.error(str(error))
+            return
+
+        target_processing = render_target_processing()
+        feature_selection = render_feature_selection(
+            feature_count=len(features)
+        )
+        lookback = render_lookback()
+
     strategy_column, value_column = st.columns(2)
     strategy = strategy_column.selectbox(
         "Validation strategy",
-        ["Random split", "Last split", "Cross-validation"],
+        ["Last split", "Cross-validation"]
+        if lookback is not None
+        else ["Random split", "Last split", "Cross-validation"],
     )
     if strategy == "Cross-validation":
         folds = value_column.slider(
@@ -56,17 +75,6 @@ def render_validation_page() -> None:
         )
         folds = 5
 
-    try:
-        preprocessing = render_preprocessing_config(
-            get_preprocessing_data(data.select(features)),
-        )
-    except ValueError as error:
-        st.error(str(error))
-        return
-
-    feature_selection = render_pipeline_step(
-        feature_count=len(features)
-    )
     model, model_is_valid = render_model_config()
     if not st.button(
         f"Validate {model.definition.label}",
@@ -86,9 +94,11 @@ def render_validation_page() -> None:
                 strategy=cast(ValidationStrategy, strategy),
                 validation_percent=validation_percent,
                 folds=folds,
+                target_processing=target_processing,
                 pipeline_steps=(
                     (feature_selection,) if feature_selection is not None else ()
                 ),
+                estimator_wrapper=lookback,
             )
         render_grid_search(result.grid_search)
         if result.prediction is not None:

@@ -62,6 +62,18 @@ Training and Validation pages. To remove it, delete the plugin directory and
 remove those two imports and calls; no discovery framework or backend changes
 are required.
 
+Target lookback is supplied by the optional `mlstudio/plugins/lookback/`
+plugin. It appends consecutive target lags after feature selection and performs
+recursive, ordered prediction from the target history saved during fitting.
+Lookback models require last-row training selection. Cross-validation and grid
+search use expanding-window `TimeSeriesSplit` folds; validation forecasts each
+fold recursively, while grid-search scoring uses known earlier targets within
+the fold to build in-sample lag features.
+
+Targets can optionally use standard or min-max scaling. Target processing is
+fitted with the model, applied to target lag features, and inverted before
+predictions and metrics are returned.
+
 ### Test
 
 Upload a trusted MLStudio model bundle and a test dataset. The app validates

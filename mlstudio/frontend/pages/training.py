@@ -18,8 +18,10 @@ from mlstudio.frontend.components import (
     render_processed_data,
     render_predictions,
     render_preprocessing_config,
+    render_target_processing,
 )
-from mlstudio.plugins.feature_selection import render_pipeline_step
+from mlstudio.plugins.feature_selection import render_feature_selection
+from mlstudio.plugins.lookback import render_lookback
 
 
 def render_training_page() -> None:
@@ -46,10 +48,27 @@ def render_training_page() -> None:
         st.info("Select at least one feature to configure preprocessing and modeling.")
         return
 
+    with st.expander("Preprocessing"):
+        try:
+            preprocessing = render_preprocessing_config(
+                get_preprocessing_data(training_data.select(features)),
+            )
+        except ValueError as error:
+            st.error(str(error))
+            return
+
+        target_processing = render_target_processing()
+        feature_selection = render_feature_selection(
+            feature_count=len(features),
+        )
+        lookback = render_lookback()
+
     selection_column, percent_column = st.columns(2)
     row_selection = selection_column.selectbox(
         "Training rows",
-        ["Random percent", "Last percent"],
+        ["Last percent"]
+        if lookback is not None
+        else ["Random percent", "Last percent"],
     )
     training_percent = percent_column.slider(
         "Percent used for training",
@@ -58,17 +77,6 @@ def render_training_page() -> None:
         100,
     )
 
-    try:
-        preprocessing = render_preprocessing_config(
-            get_preprocessing_data(training_data.select(features)),
-        )
-    except ValueError as error:
-        st.error(str(error))
-        return
-
-    feature_selection = render_pipeline_step(
-        feature_count=len(features),
-    )
     model, model_is_valid = render_model_config()
     if not st.button(
         f"Train {model.definition.label}",
@@ -88,9 +96,11 @@ def render_training_page() -> None:
                 model=model,
                 row_selection=cast(RowSelection, row_selection),
                 training_percent=training_percent,
+                target_processing=target_processing,
                 pipeline_steps=(
                     (feature_selection,) if feature_selection is not None else ()
                 ),
+                estimator_wrapper=lookback,
             )
         st.success(f"Trained on {result.trained_rows} rows.")
         render_grid_search(result.grid_search)

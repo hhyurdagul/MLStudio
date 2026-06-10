@@ -4,7 +4,7 @@ from .data import (
     render_feature_target_selector,
 )
 from .modeling import render_model_config
-from .preprocessing import render_preprocessing_config
+from .preprocessing import render_preprocessing_config, render_target_processing
 from .results import (
     render_grid_search,
     render_metrics,
@@ -22,4 +22,5 @@ __all__ = [
     "render_processed_data",
     "render_predictions",
     "render_preprocessing_config",
+    "render_target_processing",
 ]

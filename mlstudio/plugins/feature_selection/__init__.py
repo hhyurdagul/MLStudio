@@ -17,7 +17,7 @@ SCORE_FUNCTIONS: dict[str, ScoreFunction] = {
 }
 
 
-def render_pipeline_step(
+def render_feature_selection(
     feature_count: int,
 ) -> PipelineStep | None:
     enabled = st.checkbox(
@@ -39,10 +39,10 @@ def render_pipeline_step(
             step=1,
         )
     )
-    return create_pipeline_step(method, k)
+    return create_feature_selection_step(method, k)
 
 
-def create_pipeline_step(method: str, k: int) -> PipelineStep:
+def create_feature_selection_step(method: str, k: int) -> PipelineStep:
     if method not in SCORE_FUNCTIONS:
         raise ValueError(f"Unknown feature selection method: {method}")
     if k < 1:

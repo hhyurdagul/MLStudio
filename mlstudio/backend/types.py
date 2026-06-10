@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Literal
 
 import polars as pl
@@ -10,6 +11,7 @@ from .models import ModelDefinition, ParameterValue
 
 RowSelection = Literal["Random percent", "Last percent"]
 ValidationStrategy = Literal["Random split", "Last split", "Cross-validation"]
+TargetProcessing = Literal["None", "StandardScaler", "MinMaxScaler"]
 FittedEstimator = Pipeline | GridSearchCV
 
 
@@ -17,6 +19,16 @@ FittedEstimator = Pipeline | GridSearchCV
 class PipelineStep:
     name: str
     transformer: BaseEstimator | Literal["passthrough"]
+
+
+@dataclass(frozen=True)
+class EstimatorWrapper:
+    name: str
+    wrap: Callable[[BaseEstimator], BaseEstimator]
+    requires_ordered_data: bool = False
+    supports_grid_search: bool = True
+    grid_parameter_prefix: str | None = None
+    use_estimator_score: bool = False
 
 
 @dataclass(frozen=True)

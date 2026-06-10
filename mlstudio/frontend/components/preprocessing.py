@@ -1,5 +1,9 @@
+from typing import cast
+
 import polars as pl
 import streamlit as st
+
+from mlstudio.backend import TargetProcessing
 
 
 def render_preprocessing_config(
@@ -12,30 +16,55 @@ def render_preprocessing_config(
         st.dataframe(preprocessing, hide_index=True)
         return preprocessing
 
-    string_steps = st.data_editor(
-        preprocessing.filter(pl.col("Type") == "String"),
-        disabled=["Variable", "Type", "Unique Count"],
-        column_order=["Variable", "Preprocessing"],
-        column_config={
-            "Preprocessing": st.column_config.SelectboxColumn(
-                "Preprocessing",
-                options=["OrdinalEncoder", "OneHotEncoder"],
-                required=True,
+    configured_steps: list[pl.DataFrame] = []
+    string_steps = preprocessing.filter(pl.col("Type") == "String")
+    if not string_steps.is_empty():
+        configured_steps.append(
+            pl.DataFrame(
+                st.data_editor(
+                    string_steps,
+                    disabled=["Variable", "Type", "Unique Count"],
+                    column_order=["Variable", "Preprocessing"],
+                    column_config={
+                        "Preprocessing": st.column_config.SelectboxColumn(
+                            "Preprocessing",
+                            options=["OrdinalEncoder", "OneHotEncoder"],
+                            required=True,
+                        )
+                    },
+                    hide_index=True,
+                )
             )
-        },
-        hide_index=True,
+        )
+    numeric_steps = preprocessing.filter(
+        pl.col("Type").is_in(["Numeric", "Boolean"])
     )
-    numeric_steps = st.data_editor(
-        preprocessing.filter(pl.col("Type").is_in(["Numeric", "Boolean"])),
-        disabled=["Variable", "Type", "Unique Count"],
-        column_order=["Variable", "Preprocessing"],
-        column_config={
-            "Preprocessing": st.column_config.SelectboxColumn(
-                "Preprocessing",
-                options=["StandardScaler", "MinMaxScaler", "None"],
-                required=True,
+    if not numeric_steps.is_empty():
+        configured_steps.append(
+            pl.DataFrame(
+                st.data_editor(
+                    numeric_steps,
+                    disabled=["Variable", "Type", "Unique Count"],
+                    column_order=["Variable", "Preprocessing"],
+                    column_config={
+                        "Preprocessing": st.column_config.SelectboxColumn(
+                            "Preprocessing",
+                            options=["StandardScaler", "MinMaxScaler", "None"],
+                            required=True,
+                        )
+                    },
+                    hide_index=True,
+                )
             )
-        },
-        hide_index=True,
+        )
+    return pl.concat(configured_steps)
+
+
+def render_target_processing() -> TargetProcessing:
+    return cast(
+        TargetProcessing,
+        st.selectbox(
+            "Target processing",
+            ["None", "StandardScaler", "MinMaxScaler"],
+        ),
     )
-    return pl.DataFrame(string_steps).vstack(pl.DataFrame(numeric_steps))

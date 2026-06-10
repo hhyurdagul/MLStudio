@@ -2,13 +2,18 @@ from math import ceil
 
 import numpy as np
 import polars as pl
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, clone
 from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
     r2_score,
 )
-from sklearn.model_selection import KFold, cross_val_predict, train_test_split
+from sklearn.model_selection import (
+    KFold,
+    TimeSeriesSplit,
+    cross_val_predict,
+    train_test_split,
+)
 
 from .types import (
     RegressionMetrics,
@@ -108,3 +113,27 @@ def cross_validation_predictions(
             n_jobs=-1,
         )
     )
+
+
+def time_series_validation_predictions(
+    estimator: BaseEstimator,
+    x: pl.DataFrame,
+    y: pl.Series,
+    folds: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    if folds >= x.height:
+        raise ValueError(
+            "Time-series validation folds must be less than the number of rows."
+        )
+
+    predicted_indices: list[np.ndarray] = []
+    predictions: list[np.ndarray] = []
+    for training_indices, test_indices in TimeSeriesSplit(
+        n_splits=folds
+    ).split(x):
+        fold_estimator = clone(estimator)
+        fold_estimator.fit(x[training_indices], y[training_indices])
+        predicted_indices.append(test_indices)
+        predictions.append(np.asarray(fold_estimator.predict(x[test_indices])))
+
+    return np.concatenate(predicted_indices), np.concatenate(predictions)

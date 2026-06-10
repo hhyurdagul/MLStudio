@@ -3,6 +3,7 @@ from .data import read_tabular_data
 from .models import get_model_definitions
 from .preprocessing import get_preprocessing_data
 from .types import (
+    EstimatorWrapper,
     ModelArtifact,
     ModelConfig,
     PipelineStep,
@@ -11,12 +12,14 @@ from .types import (
     RegressionMetrics,
     RowSelection,
     TrainingResult,
+    TargetProcessing,
     ValidationResult,
     ValidationStrategy,
 )
 from .workflows import predict, train, validate
 
 __all__ = [
+    "EstimatorWrapper",
     "ModelArtifact",
     "ModelConfig",
     "PipelineStep",
@@ -25,6 +28,7 @@ __all__ = [
     "RegressionMetrics",
     "RowSelection",
     "TrainingResult",
+    "TargetProcessing",
     "ValidationResult",
     "ValidationStrategy",
     "deserialize_artifact",

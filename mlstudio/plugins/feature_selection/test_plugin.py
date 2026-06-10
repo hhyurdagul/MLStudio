@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from sklearn.feature_selection import SelectKBest
 
-from . import SCORE_FUNCTIONS, create_pipeline_step
+from . import SCORE_FUNCTIONS, create_feature_selection_step
 
 
 class FeatureSelectionPluginTests(unittest.TestCase):
@@ -18,7 +18,7 @@ class FeatureSelectionPluginTests(unittest.TestCase):
 
         for method in SCORE_FUNCTIONS:
             with self.subTest(method=method):
-                step = create_pipeline_step(method, 2)
+                step = create_feature_selection_step(method, 2)
                 selector = step.transformer
                 assert isinstance(selector, SelectKBest)
                 transformed = selector.fit_transform(features, target)

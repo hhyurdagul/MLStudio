@@ -29,7 +29,7 @@ def render_feature_target_selector(
     )
     features = feature_column.multiselect(
         "Features",
-        [column for column in data.columns if column != target],
+        data.select(pl.exclude(target)).columns,
         default=[],
     )
     return features, target
