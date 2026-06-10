@@ -1,15 +1,12 @@
 import polars as pl
-import numpy as np
-from typing import Any
-from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin, clone
-from sklearn.compose import ColumnTransformer
+from sklearn.base import BaseEstimator
+from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.preprocessing import (
     MinMaxScaler,
     OneHotEncoder,
     OrdinalEncoder,
     StandardScaler,
 )
-from sklearn.utils.validation import check_is_fitted
 
 from .types import TargetProcessing
 
@@ -93,69 +90,6 @@ def create_preprocessing_transformer(
     )
 
 
-class TargetProcessedRegressor(RegressorMixin, BaseEstimator):
-    def __init__(
-        self,
-        regressor: BaseEstimator,
-        transformer: TransformerMixin,
-    ) -> None:
-        self.regressor = regressor
-        self.transformer = transformer
-
-    def fit(self, X: Any, y: Any) -> "TargetProcessedRegressor":
-        target = np.asarray(y, dtype=float).reshape(-1, 1)
-        self.transformer_ = clone(self.transformer)
-        transformed_target = self.transformer_.fit_transform(target).reshape(-1)
-        self.regressor_ = clone(self.regressor)
-        self.regressor_.fit(X, transformed_target)
-        return self
-
-    def predict(self, X: Any) -> np.ndarray:
-        check_is_fitted(self, ["regressor_", "transformer_"])
-        transformed = np.asarray(self.regressor_.predict(X)).reshape(-1, 1)
-        return self.transformer_.inverse_transform(transformed).reshape(-1)
-
-    def score(
-        self,
-        X: Any,
-        y: Any,
-        sample_weight: Any = None,
-    ) -> float:
-        check_is_fitted(self, ["regressor_", "transformer_"])
-        transformed_target = self.transformer_.transform(
-            np.asarray(y, dtype=float).reshape(-1, 1)
-        ).reshape(-1)
-        return float(
-            self.regressor_.score(
-                X,
-                transformed_target,
-                sample_weight=sample_weight,
-            )
-        )
-
-    def prediction_features(self, X: Any) -> np.ndarray:
-        check_is_fitted(self, "regressor_")
-        prediction_features = getattr(self.regressor_, "prediction_features", None)
-        return np.asarray(
-            prediction_features(X)
-            if callable(prediction_features)
-            else _dense_array(X)
-        )
-
-    def get_feature_names_out(self, input_features: Any = None) -> np.ndarray:
-        check_is_fitted(self, "regressor_")
-        get_feature_names_out = getattr(
-            self.regressor_,
-            "get_feature_names_out",
-            None,
-        )
-        if callable(get_feature_names_out):
-            return np.asarray(get_feature_names_out(input_features))
-        if input_features is None:
-            return np.asarray([], dtype=object)
-        return np.asarray(input_features, dtype=object)
-
-
 def wrap_target_processing(
     regressor: BaseEstimator,
     processing: TargetProcessing,
@@ -167,11 +101,7 @@ def wrap_target_processing(
         if processing == "StandardScaler"
         else MinMaxScaler()
     )
-    return TargetProcessedRegressor(regressor, transformer)
-
-
-def _dense_array(values: Any) -> np.ndarray:
-    toarray = getattr(values, "toarray", None)
-    if callable(toarray):
-        values = toarray()
-    return np.asarray(values)
+    return TransformedTargetRegressor(
+        regressor=regressor,
+        transformer=transformer,
+    )

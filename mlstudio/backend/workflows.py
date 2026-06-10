@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.pipeline import Pipeline
 
@@ -304,11 +305,16 @@ def _processed_data(
         )
 
     model = pipeline.named_steps["model"]
-    prediction_features = getattr(model, "prediction_features", None)
+    processed_model = (
+        model.regressor_
+        if isinstance(model, TransformedTargetRegressor)
+        else model
+    )
+    prediction_features = getattr(processed_model, "prediction_features", None)
     if callable(prediction_features):
         model_input = prediction_features(model_input)
         selected_names = _transformed_feature_names(
-            model,
+            processed_model,
             selected_names,
             step_name="model",
         )
@@ -359,7 +365,7 @@ def _validate_labeled_data(
 ) -> None:
     if not features:
         raise ValueError("Select at least one feature.")
-    missing = [column for column in [*features, target] if column not in data.columns]
+    missing = set([*features, target]) - set(data.columns)
     if missing:
         raise ValueError("Missing required columns: " + ", ".join(missing))
     _validate_target(data, target)
@@ -427,6 +433,8 @@ def _dtype_name_family(dtype: str) -> str:
 
 
 def _validate_grid_folds(config: ModelConfig, rows: int) -> None:
+    if config.use_grid_search and config.cv < rows:
+        raise ValueError("Grid-search folds cannot be lower than 2.")
     if config.use_grid_search and config.cv > rows:
         raise ValueError("Grid-search folds cannot exceed the training rows.")
 
