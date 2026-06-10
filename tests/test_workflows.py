@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 import polars as pl
 from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.ensemble import VotingRegressor
 from sklearn.pipeline import Pipeline
 
 from mlstudio.backend import (
@@ -93,6 +94,63 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(
             result.prediction.processed.selected_features,
             ("feature",),
+        )
+
+    def test_voting_regressor_is_registered_and_trainable(self) -> None:
+        definition = get_model_definitions()["voting_regressor"]
+        parameters = {
+            parameter.name: parameter.default
+            for parameter in definition.parameters
+        }
+        estimator = definition.create_estimator(parameters)
+
+        assert isinstance(estimator, VotingRegressor)
+        self.assertEqual(
+            [parameter.name for parameter in definition.parameters],
+            [
+                "random_forest__n_estimators",
+                "random_forest__max_depth",
+                "random_forest__min_samples_split",
+                "gradient_boosting__n_estimators",
+                "gradient_boosting__learning_rate",
+                "gradient_boosting__max_depth",
+                "ridge__alpha",
+                "ridge__fit_intercept",
+            ],
+        )
+        estimator.fit(
+            self.data.select("feature").to_numpy(),
+            self.data["target"].to_numpy(),
+        )
+        self.assertEqual(estimator.predict([[20.0]]).shape, (1,))
+
+    def test_voting_regressor_grid_search_tunes_nested_estimators(self) -> None:
+        definition = get_model_definitions()["voting_regressor"]
+        model = ModelConfig(
+            definition=definition,
+            parameters={
+                parameter.name: parameter.default
+                for parameter in definition.parameters
+            },
+            use_grid_search=True,
+            param_grid={"model__ridge__alpha": [0.1, 1.0]},
+            cv=3,
+        )
+        result = train(
+            training_data=self.data,
+            test_data=None,
+            features=["feature"],
+            target="target",
+            preprocessing=self.preprocessing,
+            model=model,
+            row_selection="Random percent",
+            training_percent=100,
+        )
+
+        assert result.grid_search is not None
+        self.assertIn(
+            "model__ridge__alpha",
+            result.grid_search.best_parameters,
         )
 
     def test_artifact_round_trip_supports_unlabeled_prediction(self) -> None:
