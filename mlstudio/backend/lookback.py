@@ -2,12 +2,11 @@ from functools import partial
 from typing import Any
 
 import numpy as np
-import streamlit as st
 from sklearn.base import BaseEstimator, RegressorMixin, clone
 from sklearn.metrics import r2_score
 from sklearn.utils.validation import check_array, check_is_fitted
 
-from mlstudio.backend import EstimatorWrapper
+from .types import EstimatorWrapper
 
 
 class AutoregressiveRegressor(RegressorMixin, BaseEstimator):
@@ -21,17 +20,12 @@ class AutoregressiveRegressor(RegressorMixin, BaseEstimator):
         if self.lookback < 1:
             raise ValueError("Lookback must be at least one.")
         if len(target) <= self.lookback:
-            raise ValueError(
-                "Training data must contain more rows than the lookback."
-            )
+            raise ValueError("Training data must contain more rows than the lookback.")
         if features.shape[0] != target.shape[0]:
             raise ValueError("Features and target must contain the same rows.")
 
         lagged = np.column_stack(
-            [
-                target[self.lookback - lag : -lag]
-                for lag in range(1, self.lookback + 1)
-            ]
+            [target[self.lookback - lag : -lag] for lag in range(1, self.lookback + 1)]
         )
         model_features = np.column_stack((features[self.lookback :], lagged))
         self.estimator_ = clone(self.estimator)
@@ -122,9 +116,7 @@ class AutoregressiveRegressor(RegressorMixin, BaseEstimator):
         predictions: list[float] = []
         model_rows: list[np.ndarray] = []
         for row in features:
-            lags = np.asarray(
-                [history[-lag] for lag in range(1, self.lookback + 1)]
-            )
+            lags = np.asarray([history[-lag] for lag in range(1, self.lookback + 1)])
             model_row = np.concatenate((row, lags))
             prediction = float(self.estimator_.predict(model_row.reshape(1, -1))[0])
             model_rows.append(model_row)
@@ -144,22 +136,6 @@ def _dense_array(values: Any) -> np.ndarray:
     if callable(toarray):
         checked = toarray()
     return np.asarray(checked)
-
-
-def render_lookback() -> EstimatorWrapper | None:
-    enabled = st.checkbox("Use target lookback")
-    if not enabled:
-        return None
-    lookback = int(
-        st.number_input(
-            "Target lookback",
-            min_value=1,
-            value=3,
-            step=1,
-            help="Adds target lags 1 through this value to the model.",
-        )
-    )
-    return create_lookback_wrapper(lookback)
 
 
 def create_lookback_wrapper(lookback: int) -> EstimatorWrapper:

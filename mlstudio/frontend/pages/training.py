@@ -12,16 +12,16 @@ from mlstudio.frontend.components import (
     render_data_preview,
     render_dataset_selector,
     render_feature_target_selector,
+    render_feature_selection,
     render_grid_search,
     render_metrics,
     render_model_config,
+    render_lookback,
     render_processed_data,
     render_predictions,
     render_preprocessing_config,
     render_target_processing,
 )
-from mlstudio.plugins.feature_selection import render_feature_selection
-from mlstudio.plugins.lookback import render_lookback
 
 
 def render_training_page() -> None:

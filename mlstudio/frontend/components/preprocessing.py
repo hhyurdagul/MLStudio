@@ -3,7 +3,14 @@ from typing import cast
 import polars as pl
 import streamlit as st
 
-from mlstudio.backend import TargetProcessing
+from mlstudio.backend import (
+    SCORE_FUNCTIONS,
+    EstimatorWrapper,
+    PipelineStep,
+    TargetProcessing,
+    create_feature_selection_step,
+    create_lookback_wrapper,
+)
 
 
 def render_preprocessing_config(
@@ -68,3 +75,41 @@ def render_target_processing() -> TargetProcessing:
             ["None", "StandardScaler", "MinMaxScaler"],
         ),
     )
+
+
+def render_feature_selection(
+    feature_count: int,
+) -> PipelineStep | None:
+    if not st.checkbox("Use feature selection"):
+        return None
+
+    method_column, count_column = st.columns(2)
+    method = method_column.selectbox(
+        "Feature selection method",
+        tuple(SCORE_FUNCTIONS),
+    )
+    k = int(
+        count_column.number_input(
+            "Number of selected features",
+            min_value=1,
+            max_value=feature_count,
+            value=min(10, feature_count),
+            step=1,
+        )
+    )
+    return create_feature_selection_step(method, k)
+
+
+def render_lookback() -> EstimatorWrapper | None:
+    if not st.checkbox("Use target lookback"):
+        return None
+    lookback = int(
+        st.number_input(
+            "Target lookback",
+            min_value=1,
+            value=3,
+            step=1,
+            help="Adds target lags 1 through this value to the model.",
+        )
+    )
+    return create_lookback_wrapper(lookback)

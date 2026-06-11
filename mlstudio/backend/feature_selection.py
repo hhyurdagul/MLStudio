@@ -1,14 +1,25 @@
-"""Feature-scoring functions compatible with sklearn's SelectKBest."""
+"""Feature selection steps and scoring functions."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from numbers import Integral
+from typing import Any
 
 import numpy as np
-from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
+from sklearn.feature_selection import (
+    SelectKBest,
+    f_regression,
+    mutual_info_classif,
+    mutual_info_regression,
+)
 from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_X_y
+
+from .types import PipelineStep
+
+ScoreFunction = Callable[[Any, Any], Any]
 
 
 def _validate_positive_integer(value: int, name: str) -> int:
@@ -59,7 +70,7 @@ def _mrmr(
         if not selected:
             candidate_scores = relevance[candidates]
         else:
-            redundancy = correlations[np.ix_(candidates, selected)].mean(axis=1) # type: ignore
+            redundancy = correlations[np.ix_(candidates, selected)].mean(axis=1)  # type: ignore
             if method == "difference":
                 candidate_scores = relevance[candidates] - redundancy
             else:
@@ -226,9 +237,7 @@ def _relief_regression(
         target_difference_sum += np.dot(weights, target_differences)
         feature_difference_sum += (weights[:, None] * feature_differences).sum(axis=0)
         joint_difference_sum += (
-            weights[:, None]
-            * target_differences[:, None]
-            * feature_differences
+            weights[:, None] * target_differences[:, None] * feature_differences
         ).sum(axis=0)
 
     target_probability = target_difference_sum / total_weight
@@ -279,10 +288,29 @@ def relief_regression(
     )
 
 
+SCORE_FUNCTIONS: dict[str, ScoreFunction] = {
+    "F Regression": f_regression,
+    "MRMR Regression": mrmr_regression,
+    "Relief Regression": relief_regression,
+}
+
+
+def create_feature_selection_step(method: str, k: int) -> PipelineStep:
+    if method not in SCORE_FUNCTIONS:
+        raise ValueError(f"Unknown feature selection method: {method}")
+    if k < 1:
+        raise ValueError("The number of selected features must be at least one.")
+    return PipelineStep(
+        name="feature_selection",
+        transformer=SelectKBest(score_func=SCORE_FUNCTIONS[method], k=k),
+    )
+
+
 __all__ = [
+    "SCORE_FUNCTIONS",
+    "create_feature_selection_step",
     "mrmr_classif",
     "mrmr_regression",
     "relief_classif",
     "relief_regression",
 ]
-
