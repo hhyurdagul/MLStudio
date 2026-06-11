@@ -9,6 +9,7 @@ from sklearn.pipeline import Pipeline
 from mlstudio.backend import (
     ModelConfig,
     PipelineStep,
+    create_lookback_wrapper,
     deserialize_artifact,
     get_model_definitions,
     get_preprocessing_data,
@@ -23,7 +24,6 @@ from mlstudio.backend.evaluation import (
     split_validation_data,
 )
 from mlstudio.backend.types import RegressionMetrics
-from mlstudio.plugins.lookback import create_lookback_wrapper
 
 
 class WorkflowTests(unittest.TestCase):

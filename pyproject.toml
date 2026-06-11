@@ -20,4 +20,4 @@ dev = [
 ]
 
 [tool.ty.src]
-exclude = ["mlstudio/plugins/feature_selection/score_functions.py"]
+exclude = ["mlstudio/backend/feature_selection.py"]

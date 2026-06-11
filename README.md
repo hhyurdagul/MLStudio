@@ -41,8 +41,8 @@ prediction preview and CSV download. R², MAE, RMSE, and MAPE are shown when the
 test data contains the selected target.
 
 Prediction results also include a processed-data preview showing the encoded
-data after preprocessing and the final model input after optional pipeline
-plugins, including the selected feature names.
+data after preprocessing and the final model input after feature selection and
+target lookback, including the selected feature names.
 
 ### Validation
 
@@ -54,16 +54,11 @@ Upload one labeled dataset and choose one evaluation strategy:
 
 Grid search is optional for all models.
 
-Feature selection is supplied by the optional
-`mlstudio/plugins/feature_selection/` plugin. It adds the Training and
-Validation controls plus a `SelectKBest` pipeline step with F Regression, MRMR
-Regression, and Relief Regression scoring. It is explicitly imported by the
-Training and Validation pages. To remove it, delete the plugin directory and
-remove those two imports and calls; no discovery framework or backend changes
-are required.
+Feature selection is available in Training and Validation as a `SelectKBest`
+pipeline step with F Regression, MRMR Regression, and Relief Regression
+scoring.
 
-Target lookback is supplied by the optional `mlstudio/plugins/lookback/`
-plugin. It appends consecutive target lags after feature selection and performs
+Target lookback appends consecutive target lags after feature selection and performs
 recursive, ordered prediction from the target history saved during fitting.
 Lookback models require last-row training selection. Cross-validation and grid
 search use expanding-window `TimeSeriesSplit` folds; validation forecasts each
