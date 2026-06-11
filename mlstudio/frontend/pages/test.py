@@ -41,8 +41,8 @@ def render_test_page() -> None:
         with st.spinner("Running predictions..."):
             result = predict(artifact, test_data)
         render_processed_data(result.processed)
-        if result.metrics is not None:
-            render_metrics(result.metrics)
-        render_predictions(result.data)
+        if result.prediction.metrics is not None:
+            render_metrics(result.prediction.metrics)
+        render_predictions(result.prediction.data)
     except Exception as error:
         st.error(f"Prediction failed: {error}")

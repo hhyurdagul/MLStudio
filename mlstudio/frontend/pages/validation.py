@@ -3,6 +3,8 @@ from typing import cast
 import streamlit as st
 
 from mlstudio.backend import (
+    PipelineConfig,
+    ValidationConfig,
     ValidationStrategy,
     get_preprocessing_data,
     validate,
@@ -46,9 +48,7 @@ def render_validation_page() -> None:
             return
 
         target_processing = render_target_processing()
-        feature_selection = render_feature_selection(
-            feature_count=len(features)
-        )
+        feature_selection = render_feature_selection(feature_count=len(features))
         lookback = render_lookback()
 
     strategy_column, value_column = st.columns(2)
@@ -86,26 +86,25 @@ def render_validation_page() -> None:
     try:
         with st.spinner("Validating model..."):
             result = validate(
-                data=data,
-                features=features,
-                target=target,
-                preprocessing=preprocessing,
-                model=model,
-                strategy=cast(ValidationStrategy, strategy),
-                validation_percent=validation_percent,
-                folds=folds,
-                target_processing=target_processing,
-                pipeline_steps=(
-                    (feature_selection,) if feature_selection is not None else ()
+                data,
+                ValidationConfig(
+                    pipeline=PipelineConfig(
+                        features=tuple(features),
+                        target=target,
+                        preprocessing=preprocessing,
+                        model=model,
+                        target_processing=target_processing,
+                        feature_selection=feature_selection,
+                        lookback=lookback,
+                    ),
+                    strategy=cast(ValidationStrategy, strategy),
+                    percent=validation_percent,
+                    folds=folds,
                 ),
-                estimator_wrapper=lookback,
             )
         render_grid_search(result.grid_search)
-        if result.prediction is not None:
-            render_processed_data(result.prediction.processed)
-            render_metrics(result.metrics)
-            render_predictions(
-                result.prediction.data,
-            )
+        render_processed_data(result.processed)
+        render_metrics(result.metrics)
+        render_predictions(result.prediction.data)
     except Exception as error:
         st.error(f"Validation failed: {error}")

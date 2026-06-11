@@ -17,7 +17,7 @@ from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_X_y
 
-from .types import PipelineStep
+from .types import FeatureSelectionConfig
 
 ScoreFunction = Callable[[Any, Any], Any]
 
@@ -295,20 +295,20 @@ SCORE_FUNCTIONS: dict[str, ScoreFunction] = {
 }
 
 
-def create_feature_selection_step(method: str, k: int) -> PipelineStep:
-    if method not in SCORE_FUNCTIONS:
-        raise ValueError(f"Unknown feature selection method: {method}")
-    if k < 1:
+def create_feature_selector(config: FeatureSelectionConfig) -> SelectKBest:
+    if config.method not in SCORE_FUNCTIONS:
+        raise ValueError(f"Unknown feature selection method: {config.method}")
+    if config.count < 1:
         raise ValueError("The number of selected features must be at least one.")
-    return PipelineStep(
-        name="feature_selection",
-        transformer=SelectKBest(score_func=SCORE_FUNCTIONS[method], k=k),
+    return SelectKBest(
+        score_func=SCORE_FUNCTIONS[config.method],
+        k=config.count,
     )
 
 
 __all__ = [
     "SCORE_FUNCTIONS",
-    "create_feature_selection_step",
+    "create_feature_selector",
     "mrmr_classif",
     "mrmr_regression",
     "relief_classif",

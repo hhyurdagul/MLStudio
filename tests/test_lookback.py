@@ -3,10 +3,7 @@ import unittest
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-from mlstudio.backend.lookback import (
-    AutoregressiveRegressor,
-    create_lookback_wrapper,
-)
+from mlstudio.backend.lookback import AutoregressiveRegressor
 
 
 class LookbackTests(unittest.TestCase):
@@ -63,9 +60,12 @@ class LookbackTests(unittest.TestCase):
             estimator.estimator_.predict(expected_rows),
         )
 
-    def test_wrapper_rejects_invalid_lookback(self) -> None:
+    def test_rejects_invalid_lookback(self) -> None:
         with self.assertRaisesRegex(ValueError, "at least one"):
-            create_lookback_wrapper(0)
+            AutoregressiveRegressor(LinearRegression(), lookback=0).fit(
+                np.zeros((2, 1)),
+                np.zeros(2),
+            )
 
 
 if __name__ == "__main__":

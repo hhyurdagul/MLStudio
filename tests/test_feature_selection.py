@@ -3,10 +3,8 @@ import unittest
 import numpy as np
 from sklearn.feature_selection import SelectKBest
 
-from mlstudio.backend.feature_selection import (
-    SCORE_FUNCTIONS,
-    create_feature_selection_step,
-)
+from mlstudio.backend import FeatureSelectionConfig
+from mlstudio.backend.feature_selection import SCORE_FUNCTIONS, create_feature_selector
 
 
 class FeatureSelectionTests(unittest.TestCase):
@@ -17,8 +15,9 @@ class FeatureSelectionTests(unittest.TestCase):
 
         for method in SCORE_FUNCTIONS:
             with self.subTest(method=method):
-                step = create_feature_selection_step(method, 2)
-                selector = step.transformer
+                selector = create_feature_selector(
+                    FeatureSelectionConfig(method=method, count=2)
+                )
                 assert isinstance(selector, SelectKBest)
                 transformed = selector.fit_transform(features, target)
                 self.assertEqual(transformed.shape, (40, 2))

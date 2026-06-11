@@ -3,7 +3,9 @@ from typing import cast
 import streamlit as st
 
 from mlstudio.backend import (
+    PipelineConfig,
     RowSelection,
+    TrainingConfig,
     get_preprocessing_data,
     serialize_artifact,
     train,
@@ -88,19 +90,21 @@ def render_training_page() -> None:
     try:
         with st.spinner("Training model..."):
             result = train(
-                training_data=training_data,
-                test_data=test_data,
-                features=features,
-                target=target,
-                preprocessing=preprocessing,
-                model=model,
-                row_selection=cast(RowSelection, row_selection),
-                training_percent=training_percent,
-                target_processing=target_processing,
-                pipeline_steps=(
-                    (feature_selection,) if feature_selection is not None else ()
+                training_data,
+                TrainingConfig(
+                    pipeline=PipelineConfig(
+                        features=tuple(features),
+                        target=target,
+                        preprocessing=preprocessing,
+                        model=model,
+                        target_processing=target_processing,
+                        feature_selection=feature_selection,
+                        lookback=lookback,
+                    ),
+                    row_selection=cast(RowSelection, row_selection),
+                    percent=training_percent,
                 ),
-                estimator_wrapper=lookback,
+                test_data,
             )
         st.success(f"Trained on {result.trained_rows} rows.")
         render_grid_search(result.grid_search)
@@ -111,8 +115,9 @@ def render_training_page() -> None:
             mime="application/octet-stream",
             on_click="ignore",
         )
+
+        render_processed_data(result.processed)
         if result.prediction is not None:
-            render_processed_data(result.prediction.processed)
             if result.prediction.metrics is not None:
                 render_metrics(result.prediction.metrics)
             render_predictions(

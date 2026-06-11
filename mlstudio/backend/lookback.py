@@ -1,12 +1,9 @@
-from functools import partial
 from typing import Any
 
 import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin, clone
 from sklearn.metrics import r2_score
 from sklearn.utils.validation import check_array, check_is_fitted
-
-from .types import EstimatorWrapper
 
 
 class AutoregressiveRegressor(RegressorMixin, BaseEstimator):
@@ -136,15 +133,3 @@ def _dense_array(values: Any) -> np.ndarray:
     if callable(toarray):
         checked = toarray()
     return np.asarray(checked)
-
-
-def create_lookback_wrapper(lookback: int) -> EstimatorWrapper:
-    if lookback < 1:
-        raise ValueError("Lookback must be at least one.")
-    return EstimatorWrapper(
-        name="Target lookback",
-        wrap=partial(AutoregressiveRegressor, lookback=lookback),
-        requires_ordered_data=True,
-        grid_parameter_prefix="estimator",
-        use_estimator_score=True,
-    )

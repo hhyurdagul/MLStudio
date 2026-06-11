@@ -16,21 +16,25 @@ from .evaluation import (
     split_validation_data,
     time_series_validation_predictions,
 )
+from .feature_selection import create_feature_selector
+from .lookback import AutoregressiveRegressor
 from .preprocessing import (
     create_preprocessing_transformer,
     wrap_target_processing,
 )
 from .types import (
-    EstimatorWrapper,
     GridSearchSummary,
     ModelArtifact,
     ModelConfig,
-    PipelineStep,
+    PipelineConfig,
     PredictionResult,
     ProcessedData,
     RowSelection,
-    TrainingResult,
     TargetProcessing,
+    TestResult,
+    TrainingConfig,
+    TrainingResult,
+    ValidationConfig,
     ValidationResult,
     ValidationStrategy,
 )
@@ -38,48 +42,41 @@ from .types import (
 
 def train(
     training_data: pl.DataFrame,
-    test_data: pl.DataFrame | None,
-    features: list[str],
-    target: str,
-    preprocessing: pl.DataFrame,
-    model: ModelConfig,
-    row_selection: RowSelection,
-    training_percent: int,
-    target_processing: TargetProcessing = "None",
-    pipeline_steps: tuple[PipelineStep, ...] = (),
-    estimator_wrapper: EstimatorWrapper | None = None,
+    config: TrainingConfig,
+    test_data: pl.DataFrame | None = None,
 ) -> TrainingResult:
-    _validate_labeled_data(training_data, features, target)
+    pipeline = config.pipeline
+    _validate_labeled_data(training_data, pipeline.features, pipeline.target)
     selected_data = select_training_rows(
         training_data,
-        row_selection,
-        training_percent,
+        config.row_selection,
+        config.percent,
     )
-    _validate_ordered_training(estimator_wrapper, row_selection)
-    _validate_grid_folds(model, selected_data.height)
-    _validate_wrapper_grid_search(estimator_wrapper, model)
+    _validate_ordered_training(pipeline.lookback, config.row_selection)
+    _validate_grid_folds(pipeline.model, selected_data.height)
 
-    estimator = _create_estimator(
-        preprocessing,
-        model,
-        pipeline_steps,
-        estimator_wrapper,
-        target_processing,
+    estimator = _create_estimator(pipeline)
+    estimator.fit(
+        selected_data.select(pipeline.features),
+        selected_data[pipeline.target],
     )
-    estimator.fit(selected_data.select(features), selected_data[target])
     artifact = ModelArtifact(
         version=ARTIFACT_VERSION,
         pipeline=estimator,
-        features=tuple(features),
-        target=target,
+        features=pipeline.features,
+        target=pipeline.target,
         feature_dtypes={
-            feature: str(training_data.schema[feature]) for feature in features
+            feature: str(training_data.schema[feature]) for feature in pipeline.features
         },
-        model_label=model.definition.label,
+        model_label=pipeline.model.definition.label,
     )
     return TrainingResult(
         artifact=artifact,
         trained_rows=selected_data.height,
+        processed=_processed_data(
+            estimator,
+            selected_data.select(pipeline.features),
+        ),
         prediction=(
             _predict_with_artifact(artifact, test_data)
             if test_data is not None
@@ -91,145 +88,135 @@ def train(
 
 def validate(
     data: pl.DataFrame,
-    features: list[str],
-    target: str,
-    preprocessing: pl.DataFrame,
-    model: ModelConfig,
-    strategy: ValidationStrategy,
-    validation_percent: int,
-    folds: int,
-    target_processing: TargetProcessing = "None",
-    pipeline_steps: tuple[PipelineStep, ...] = (),
-    estimator_wrapper: EstimatorWrapper | None = None,
+    config: ValidationConfig,
 ) -> ValidationResult:
-    _validate_labeled_data(data, features, target)
-    _validate_ordered_validation(estimator_wrapper, strategy)
-    _validate_wrapper_grid_search(estimator_wrapper, model)
-    estimator = _create_estimator(
-        preprocessing,
-        model,
-        pipeline_steps,
-        estimator_wrapper,
-        target_processing,
-    )
+    pipeline = config.pipeline
+    _validate_labeled_data(data, pipeline.features, pipeline.target)
+    _validate_ordered_validation(pipeline.lookback, config.strategy)
+    estimator = _create_estimator(pipeline)
 
-    if strategy == "Cross-validation":
-        if estimator_wrapper is not None and estimator_wrapper.requires_ordered_data:
+    if config.strategy == "Cross-validation":
+        if pipeline.lookback is not None:
             prediction_indices, predictions = time_series_validation_predictions(
                 estimator,
-                data.select(features),
-                data[target],
-                folds,
+                data.select(pipeline.features),
+                data[pipeline.target],
+                config.folds,
             )
             prediction_data = data[prediction_indices]
         else:
             predictions = cross_validation_predictions(
                 estimator,
-                data.select(features),
-                data[target],
-                folds,
+                data.select(pipeline.features),
+                data[pipeline.target],
+                config.folds,
             )
             prediction_data = data
-        metrics = calculate_metrics(prediction_data[target], predictions)
-        estimator.fit(data.select(features), data[target])
+        metrics = calculate_metrics(prediction_data[pipeline.target], predictions)
+        estimator.fit(data.select(pipeline.features), data[pipeline.target])
         prediction = PredictionResult(
-            data=_prediction_frame(prediction_data, predictions, target),
+            data=_prediction_frame(prediction_data, predictions, pipeline.target),
             metrics=metrics,
-            processed=_processed_data(
-                estimator,
-                prediction_data.select(features),
-            ),
         )
         return ValidationResult(
             metrics=metrics,
+            processed=_processed_data(
+                estimator,
+                prediction_data.select(pipeline.features),
+            ),
             prediction=prediction,
             grid_search=_grid_search_summary(estimator),
         )
 
     training_data, validation_data = split_validation_data(
         data,
-        strategy,
-        validation_percent,
+        config.strategy,
+        config.percent,
     )
-    _validate_grid_folds(model, training_data.height)
-    estimator.fit(training_data.select(features), training_data[target])
-    predictions = estimator.predict(validation_data.select(features))
-    metrics = calculate_metrics(validation_data[target], predictions)
+    _validate_grid_folds(pipeline.model, training_data.height)
+    estimator.fit(
+        training_data.select(pipeline.features),
+        training_data[pipeline.target],
+    )
+    predictions = estimator.predict(validation_data.select(pipeline.features))
+    metrics = calculate_metrics(validation_data[pipeline.target], predictions)
     prediction = PredictionResult(
-        data=_prediction_frame(validation_data, predictions, target),
+        data=_prediction_frame(validation_data, predictions, pipeline.target),
         metrics=metrics,
-        processed=_processed_data(estimator, validation_data.select(features)),
     )
     return ValidationResult(
         metrics=metrics,
+        processed=_processed_data(
+            estimator,
+            validation_data.select(pipeline.features),
+        ),
         prediction=prediction,
         grid_search=_grid_search_summary(estimator),
     )
 
 
-def predict(artifact: ModelArtifact, data: pl.DataFrame) -> PredictionResult:
-    return _predict_with_artifact(artifact, data)
-
-
-def _create_estimator(
-    preprocessing: pl.DataFrame,
-    config: ModelConfig,
-    pipeline_steps: tuple[PipelineStep, ...],
-    estimator_wrapper: EstimatorWrapper | None,
-    target_processing: TargetProcessing,
-) -> Pipeline | GridSearchCV:
-    model = config.definition.create_estimator(config.parameters)
-    if estimator_wrapper is not None:
-        model = estimator_wrapper.wrap(model)
-    model = wrap_target_processing(model, target_processing)
-    pipeline = Pipeline(
-        [
-            (
-                "preprocessing",
-                create_preprocessing_transformer(preprocessing),
-            ),
-            *((step.name, step.transformer) for step in pipeline_steps),
-            ("model", model),
-        ]
+def predict(artifact: ModelArtifact, data: pl.DataFrame) -> TestResult:
+    prediction = _predict_with_artifact(artifact, data)
+    return TestResult(
+        processed=_processed_data(
+            artifact.pipeline,
+            data.select(artifact.features),
+        ),
+        prediction=prediction,
     )
-    if not config.use_grid_search:
+
+
+def _create_estimator(config: PipelineConfig) -> Pipeline | GridSearchCV:
+    model_config = config.model
+    model = model_config.definition.create_estimator(model_config.parameters)
+    if config.lookback is not None:
+        model = AutoregressiveRegressor(model, lookback=config.lookback)
+    model = wrap_target_processing(model, config.target_processing)
+
+    steps: list[tuple[str, Any]] = [
+        ("preprocessing", create_preprocessing_transformer(config.preprocessing))
+    ]
+    if config.feature_selection is not None:
+        steps.append(
+            ("feature_selection", create_feature_selector(config.feature_selection))
+        )
+    steps.append(("model", model))
+    pipeline = Pipeline(steps)
+
+    if not model_config.use_grid_search:
         return pipeline
-    if not config.param_grid or any(not values for values in config.param_grid.values()):
+    if not model_config.param_grid or any(
+        not values for values in model_config.param_grid.values()
+    ):
         raise ValueError("Every grid-search parameter needs at least one value.")
     param_grid = _wrapped_param_grid(
-        config.param_grid,
-        estimator_wrapper,
-        target_processing,
+        model_config.param_grid,
+        config.lookback,
+        config.target_processing,
     )
     return GridSearchCV(
         pipeline,
         param_grid,
         cv=(
-            TimeSeriesSplit(n_splits=config.cv)
-            if estimator_wrapper is not None
-            and estimator_wrapper.requires_ordered_data
-            else config.cv
+            TimeSeriesSplit(n_splits=model_config.cv)
+            if config.lookback is not None
+            else model_config.cv
         ),
         n_jobs=-1,
-        scoring=(
-            None
-            if estimator_wrapper is not None
-            and estimator_wrapper.use_estimator_score
-            else "r2"
-        ),
+        scoring=None if config.lookback is not None else "r2",
     )
 
 
 def _wrapped_param_grid(
     param_grid: dict[str, list[Any]],
-    wrapper: EstimatorWrapper | None,
+    lookback: int | None,
     target_processing: TargetProcessing,
 ) -> dict[str, list[Any]]:
     prefixes = []
     if target_processing != "None":
         prefixes.append("regressor")
-    if wrapper is not None and wrapper.grid_parameter_prefix is not None:
-        prefixes.append(wrapper.grid_parameter_prefix)
+    if lookback is not None:
+        prefixes.append("estimator")
     if not prefixes:
         return param_grid
     prefix = "__".join(prefixes)
@@ -256,10 +243,6 @@ def _predict_with_artifact(
     return PredictionResult(
         data=_prediction_frame(data, predictions, artifact.target),
         metrics=metrics,
-        processed=_processed_data(
-            artifact.pipeline,
-            data.select(artifact.features),
-        ),
     )
 
 
@@ -283,9 +266,7 @@ def _processed_data(
     features: pl.DataFrame,
 ) -> ProcessedData:
     pipeline = (
-        estimator.best_estimator_
-        if isinstance(estimator, GridSearchCV)
-        else estimator
+        estimator.best_estimator_ if isinstance(estimator, GridSearchCV) else estimator
     )
     preprocessing = pipeline.named_steps["preprocessing"]
     transformed = preprocessing.transform(features)
@@ -306,9 +287,7 @@ def _processed_data(
 
     model = pipeline.named_steps["model"]
     processed_model = (
-        model.regressor_
-        if isinstance(model, TransformedTargetRegressor)
-        else model
+        model.regressor_ if isinstance(model, TransformedTargetRegressor) else model
     )
     prediction_features = getattr(processed_model, "prediction_features", None)
     if callable(prediction_features):
@@ -360,7 +339,7 @@ def _to_frame(values: Any, columns: list[str]) -> pl.DataFrame:
 
 def _validate_labeled_data(
     data: pl.DataFrame,
-    features: list[str],
+    features: tuple[str, ...],
     target: str,
 ) -> None:
     if not features:
@@ -401,9 +380,7 @@ def _validate_feature_data(
         if _dtype_family(data.schema[feature]) != _dtype_name_family(expected)
     ]
     if incompatible:
-        raise ValueError(
-            "Incompatible feature types for: " + ", ".join(incompatible)
-        )
+        raise ValueError("Incompatible feature types for: " + ", ".join(incompatible))
     null_features = [feature for feature in features if data[feature].null_count() > 0]
     if null_features:
         raise ValueError(
@@ -433,50 +410,37 @@ def _dtype_name_family(dtype: str) -> str:
 
 
 def _validate_grid_folds(config: ModelConfig, rows: int) -> None:
-    if config.use_grid_search and config.cv < rows:
+    if config.use_grid_search and config.cv < 2:
         raise ValueError("Grid-search folds cannot be lower than 2.")
     if config.use_grid_search and config.cv > rows:
         raise ValueError("Grid-search folds cannot exceed the training rows.")
 
 
 def _validate_ordered_training(
-    wrapper: EstimatorWrapper | None,
+    lookback: int | None,
     row_selection: RowSelection,
 ) -> None:
-    if (
-        wrapper is not None
-        and wrapper.requires_ordered_data
-        and row_selection != "Last percent"
-    ):
+    _validate_lookback(lookback)
+    if lookback is not None and row_selection != "Last percent":
         raise ValueError(
-            f"{wrapper.name} requires training with the last contiguous rows."
+            "Target lookback requires training with the last contiguous rows."
         )
 
 
 def _validate_ordered_validation(
-    wrapper: EstimatorWrapper | None,
+    lookback: int | None,
     strategy: ValidationStrategy,
 ) -> None:
-    if (
-        wrapper is not None
-        and wrapper.requires_ordered_data
-        and strategy not in ("Last split", "Cross-validation")
-    ):
+    _validate_lookback(lookback)
+    if lookback is not None and strategy not in ("Last split", "Cross-validation"):
         raise ValueError(
-            f"{wrapper.name} requires validation with a chronological last split."
+            "Target lookback requires validation with a chronological last split."
         )
 
 
-def _validate_wrapper_grid_search(
-    wrapper: EstimatorWrapper | None,
-    config: ModelConfig,
-) -> None:
-    if (
-        wrapper is not None
-        and not wrapper.supports_grid_search
-        and config.use_grid_search
-    ):
-        raise ValueError(f"{wrapper.name} does not support grid search.")
+def _validate_lookback(lookback: int | None) -> None:
+    if lookback is not None and lookback < 1:
+        raise ValueError("Lookback must be at least one.")
 
 
 def _grid_search_summary(

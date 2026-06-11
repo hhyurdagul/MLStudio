@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 import streamlit as st
 
@@ -33,9 +33,7 @@ def render_model_config() -> tuple[ModelConfig, bool]:
         if use_grid_search
         else 5
     )
-    param_grid, grid_is_valid = (
-        _render_grid(model) if use_grid_search else ({}, True)
-    )
+    param_grid, grid_is_valid = _render_grid(model) if use_grid_search else ({}, True)
     return (
         ModelConfig(model, parameters, use_grid_search, param_grid, cv),
         grid_is_valid,
@@ -48,7 +46,6 @@ def _render_parameters(
     columns = st.columns(min(3, len(model.parameters)))
     return {
         parameter.name: _render_parameter(
-            model,
             parameter,
             columns[index % len(columns)],
         )
@@ -57,35 +54,25 @@ def _render_parameters(
 
 
 def _render_parameter(
-    model: ModelDefinition,
     parameter: ModelParameter,
     container: Any,
 ) -> ParameterValue:
-    if parameter.kind == "integer":
-        return int(
+    if parameter.kind == "integer" or parameter.kind == "float":
+        cast = int if parameter.kind == "integer" else float
+        return cast(
             container.number_input(
                 parameter.label,
-                value=cast(int, parameter.default),
-                min_value=cast(int, parameter.minimum),
-                max_value=cast(int, parameter.maximum),
-                step=cast(int, parameter.step),
-            )
-        )
-    if parameter.kind == "float":
-        return float(
-            container.number_input(
-                parameter.label,
-                value=cast(float, parameter.default),
-                min_value=cast(float, parameter.minimum),
-                max_value=cast(float, parameter.maximum),
-                step=cast(float, parameter.step),
+                value=parameter.default,
+                min_value=parameter.minimum,
+                max_value=parameter.maximum,
+                step=parameter.step,
             )
         )
     if parameter.kind == "boolean":
         return bool(
             container.checkbox(
                 parameter.label,
-                value=cast(bool, parameter.default),
+                value=parameter.default,
             )
         )
     return container.selectbox(

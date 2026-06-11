@@ -1,42 +1,46 @@
 from .artifacts import deserialize_artifact, serialize_artifact
 from .data import read_tabular_data
-from .feature_selection import SCORE_FUNCTIONS, create_feature_selection_step
-from .lookback import AutoregressiveRegressor, create_lookback_wrapper
+from .feature_selection import SCORE_FUNCTIONS
+from .lookback import AutoregressiveRegressor
 from .models import get_model_definitions
 from .preprocessing import get_preprocessing_data
 from .types import (
-    EstimatorWrapper,
+    FeatureSelectionConfig,
     ModelArtifact,
     ModelConfig,
-    PipelineStep,
+    PipelineConfig,
     PredictionResult,
     ProcessedData,
     RegressionMetrics,
     RowSelection,
-    TrainingResult,
     TargetProcessing,
+    TestResult,
+    TrainingConfig,
+    TrainingResult,
     ValidationResult,
+    ValidationConfig,
     ValidationStrategy,
 )
 from .workflows import predict, train, validate
 
 __all__ = [
-    "EstimatorWrapper",
     "AutoregressiveRegressor",
+    "FeatureSelectionConfig",
     "ModelArtifact",
     "ModelConfig",
-    "PipelineStep",
+    "PipelineConfig",
     "PredictionResult",
     "ProcessedData",
     "RegressionMetrics",
     "RowSelection",
-    "TrainingResult",
     "TargetProcessing",
+    "TestResult",
+    "TrainingConfig",
+    "TrainingResult",
     "ValidationResult",
+    "ValidationConfig",
     "ValidationStrategy",
     "SCORE_FUNCTIONS",
-    "create_feature_selection_step",
-    "create_lookback_wrapper",
     "deserialize_artifact",
     "get_model_definitions",
     "get_preprocessing_data",

@@ -5,24 +5,14 @@ import streamlit as st
 
 from mlstudio.backend import (
     SCORE_FUNCTIONS,
-    EstimatorWrapper,
-    PipelineStep,
+    FeatureSelectionConfig,
     TargetProcessing,
-    create_feature_selection_step,
-    create_lookback_wrapper,
 )
 
 
 def render_preprocessing_config(
     preprocessing: pl.DataFrame,
 ) -> pl.DataFrame:
-    customize = st.checkbox(
-        "Customize preprocessing",
-    )
-    if not customize:
-        st.dataframe(preprocessing, hide_index=True)
-        return preprocessing
-
     configured_steps: list[pl.DataFrame] = []
     string_steps = preprocessing.filter(pl.col("Type") == "String")
     if not string_steps.is_empty():
@@ -31,7 +21,6 @@ def render_preprocessing_config(
                 st.data_editor(
                     string_steps,
                     disabled=["Variable", "Type", "Unique Count"],
-                    column_order=["Variable", "Preprocessing"],
                     column_config={
                         "Preprocessing": st.column_config.SelectboxColumn(
                             "Preprocessing",
@@ -43,16 +32,13 @@ def render_preprocessing_config(
                 )
             )
         )
-    numeric_steps = preprocessing.filter(
-        pl.col("Type").is_in(["Numeric", "Boolean"])
-    )
+    numeric_steps = preprocessing.filter(pl.col("Type").is_in(["Numeric", "Boolean"]))
     if not numeric_steps.is_empty():
         configured_steps.append(
             pl.DataFrame(
                 st.data_editor(
                     numeric_steps,
                     disabled=["Variable", "Type", "Unique Count"],
-                    column_order=["Variable", "Preprocessing"],
                     column_config={
                         "Preprocessing": st.column_config.SelectboxColumn(
                             "Preprocessing",
@@ -79,7 +65,7 @@ def render_target_processing() -> TargetProcessing:
 
 def render_feature_selection(
     feature_count: int,
-) -> PipelineStep | None:
+) -> FeatureSelectionConfig | None:
     if not st.checkbox("Use feature selection"):
         return None
 
@@ -97,10 +83,10 @@ def render_feature_selection(
             step=1,
         )
     )
-    return create_feature_selection_step(method, k)
+    return FeatureSelectionConfig(method=method, count=k)
 
 
-def render_lookback() -> EstimatorWrapper | None:
+def render_lookback() -> int | None:
     if not st.checkbox("Use target lookback"):
         return None
     lookback = int(
@@ -112,4 +98,4 @@ def render_lookback() -> EstimatorWrapper | None:
             help="Adds target lags 1 through this value to the model.",
         )
     )
-    return create_lookback_wrapper(lookback)
+    return lookback

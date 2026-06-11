@@ -40,9 +40,10 @@ downloadable `.joblib` bundle. When test data is supplied, the app produces a
 prediction preview and CSV download. R², MAE, RMSE, and MAPE are shown when the
 test data contains the selected target.
 
-Prediction results also include a processed-data preview showing the encoded
-data after preprocessing and the final model input after feature selection and
-target lookback, including the selected feature names.
+Training, validation, and test results include a processed-data preview showing
+the encoded data after preprocessing and the final model input after feature
+selection and target lookback, including the selected feature names. Training
+shows this preview even when no test dataset is supplied.
 
 ### Validation
 
@@ -80,7 +81,6 @@ present.
 
 - Random Forest Regressor
 - Gradient Boosting Regressor
-- Ridge Regression
 
 ## Data Constraints
 
