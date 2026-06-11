@@ -25,18 +25,23 @@ from .preprocessing import (
 from .types import (
     GridSearchSummary,
     ModelArtifact,
-    ModelConfig,
     PipelineConfig,
     PredictionResult,
     ProcessedData,
-    RowSelection,
     TargetProcessing,
     TestResult,
     TrainingConfig,
     TrainingResult,
     ValidationConfig,
     ValidationResult,
-    ValidationStrategy,
+)
+from .checks import (
+    validate_feature_data,
+    validate_grid_folds,
+    validate_labeled_data,
+    validate_ordered_training,
+    validate_ordered_validation,
+    validate_target,
 )
 
 
@@ -46,14 +51,14 @@ def train(
     test_data: pl.DataFrame | None = None,
 ) -> TrainingResult:
     pipeline = config.pipeline
-    _validate_labeled_data(training_data, pipeline.features, pipeline.target)
+    validate_labeled_data(training_data, pipeline.features, pipeline.target)
     selected_data = select_training_rows(
         training_data,
         config.row_selection,
         config.percent,
     )
-    _validate_ordered_training(pipeline.lookback, config.row_selection)
-    _validate_grid_folds(pipeline.model, selected_data.height)
+    validate_ordered_training(pipeline.lookback, config.row_selection)
+    validate_grid_folds(pipeline.model, selected_data.height)
 
     estimator = _create_estimator(pipeline)
     estimator.fit(
@@ -91,8 +96,8 @@ def validate(
     config: ValidationConfig,
 ) -> ValidationResult:
     pipeline = config.pipeline
-    _validate_labeled_data(data, pipeline.features, pipeline.target)
-    _validate_ordered_validation(pipeline.lookback, config.strategy)
+    validate_labeled_data(data, pipeline.features, pipeline.target)
+    validate_ordered_validation(pipeline.lookback, config.strategy)
     estimator = _create_estimator(pipeline)
 
     if config.strategy == "Cross-validation":
@@ -133,7 +138,7 @@ def validate(
         config.strategy,
         config.percent,
     )
-    _validate_grid_folds(pipeline.model, training_data.height)
+    validate_grid_folds(pipeline.model, training_data.height)
     estimator.fit(
         training_data.select(pipeline.features),
         training_data[pipeline.target],
@@ -234,11 +239,11 @@ def _predict_with_artifact(
     artifact: ModelArtifact,
     data: pl.DataFrame,
 ) -> PredictionResult:
-    _validate_feature_data(data, artifact.features, artifact.feature_dtypes)
+    validate_feature_data(data, artifact.features, artifact.feature_dtypes)
     predictions = artifact.pipeline.predict(data.select(artifact.features))
     metrics = None
     if artifact.target in data.columns:
-        _validate_target(data, artifact.target)
+        validate_target(data, artifact.target)
         metrics = calculate_metrics(data[artifact.target], predictions)
     return PredictionResult(
         data=_prediction_frame(data, predictions, artifact.target),
@@ -335,112 +340,6 @@ def _to_frame(values: Any, columns: list[str]) -> pl.DataFrame:
     if callable(toarray):
         values = toarray()
     return pl.DataFrame(values, schema=columns, orient="row")
-
-
-def _validate_labeled_data(
-    data: pl.DataFrame,
-    features: tuple[str, ...],
-    target: str,
-) -> None:
-    if not features:
-        raise ValueError("Select at least one feature.")
-    missing = set([*features, target]) - set(data.columns)
-    if missing:
-        raise ValueError("Missing required columns: " + ", ".join(missing))
-    _validate_target(data, target)
-    null_columns = [
-        column for column in [*features, target] if data[column].null_count() > 0
-    ]
-    if null_columns:
-        raise ValueError(
-            "Missing values are not supported yet. Found nulls in: "
-            + ", ".join(null_columns)
-        )
-
-
-def _validate_target(data: pl.DataFrame, target: str) -> None:
-    if not data.schema[target].is_numeric():
-        raise ValueError("Regression requires a numeric target.")
-    if data[target].null_count() > 0:
-        raise ValueError("The target contains missing values.")
-
-
-def _validate_feature_data(
-    data: pl.DataFrame,
-    features: tuple[str, ...],
-    expected_dtypes: dict[str, str],
-) -> None:
-    missing = [feature for feature in features if feature not in data.columns]
-    if missing:
-        raise ValueError("Missing required feature columns: " + ", ".join(missing))
-
-    incompatible = [
-        feature
-        for feature, expected in expected_dtypes.items()
-        if _dtype_family(data.schema[feature]) != _dtype_name_family(expected)
-    ]
-    if incompatible:
-        raise ValueError("Incompatible feature types for: " + ", ".join(incompatible))
-    null_features = [feature for feature in features if data[feature].null_count() > 0]
-    if null_features:
-        raise ValueError(
-            "Missing values are not supported yet. Found nulls in: "
-            + ", ".join(null_features)
-        )
-
-
-def _dtype_family(dtype: pl.DataType | type[pl.DataType]) -> str:
-    if dtype.is_numeric():
-        return "numeric"
-    if dtype == pl.Boolean:
-        return "boolean"
-    if dtype in (pl.String, pl.Categorical, pl.Enum):
-        return "string"
-    return str(dtype)
-
-
-def _dtype_name_family(dtype: str) -> str:
-    if dtype.startswith(("Int", "UInt", "Float", "Decimal")):
-        return "numeric"
-    if dtype == "Boolean":
-        return "boolean"
-    if dtype.startswith(("String", "Categorical", "Enum")):
-        return "string"
-    return dtype
-
-
-def _validate_grid_folds(config: ModelConfig, rows: int) -> None:
-    if config.use_grid_search and config.cv < 2:
-        raise ValueError("Grid-search folds cannot be lower than 2.")
-    if config.use_grid_search and config.cv > rows:
-        raise ValueError("Grid-search folds cannot exceed the training rows.")
-
-
-def _validate_ordered_training(
-    lookback: int | None,
-    row_selection: RowSelection,
-) -> None:
-    _validate_lookback(lookback)
-    if lookback is not None and row_selection != "Last percent":
-        raise ValueError(
-            "Target lookback requires training with the last contiguous rows."
-        )
-
-
-def _validate_ordered_validation(
-    lookback: int | None,
-    strategy: ValidationStrategy,
-) -> None:
-    _validate_lookback(lookback)
-    if lookback is not None and strategy not in ("Last split", "Cross-validation"):
-        raise ValueError(
-            "Target lookback requires validation with a chronological last split."
-        )
-
-
-def _validate_lookback(lookback: int | None) -> None:
-    if lookback is not None and lookback < 1:
-        raise ValueError("Lookback must be at least one.")
 
 
 def _grid_search_summary(
