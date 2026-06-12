@@ -5,10 +5,20 @@ from typing import Any
 import numpy as np
 import polars as pl
 from sklearn.compose import TransformedTargetRegressor
+from sklearn.feature_selection import SelectKBest
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.pipeline import Pipeline
 
 from .artifacts import ARTIFACT_VERSION
+from .checks import (
+    validate_feature_data,
+    validate_grid_folds,
+    validate_labeled_data,
+    validate_ordered_training,
+    validate_ordered_validation,
+    validate_target,
+)
+from .data import to_dense_array
 from .evaluation import (
     calculate_metrics,
     cross_validation_predictions,
@@ -35,14 +45,6 @@ from .types import (
     ValidationConfig,
     ValidationResult,
 )
-from .checks import (
-    validate_feature_data,
-    validate_grid_folds,
-    validate_labeled_data,
-    validate_ordered_training,
-    validate_ordered_validation,
-    validate_target,
-)
 
 
 def train(
@@ -52,12 +54,12 @@ def train(
 ) -> TrainingResult:
     pipeline = config.pipeline
     validate_labeled_data(training_data, pipeline.features, pipeline.target)
+    validate_ordered_training(pipeline.lookback, config.row_selection)
     selected_data = select_training_rows(
         training_data,
         config.row_selection,
         config.percent,
     )
-    validate_ordered_training(pipeline.lookback, config.row_selection)
     validate_grid_folds(pipeline.model, selected_data.height)
 
     estimator = _create_estimator(pipeline)
@@ -280,28 +282,26 @@ def _processed_data(
 
     model_input = transformed
     selected_names = feature_names
-    for name, transformer in pipeline.steps[1:-1]:
-        if transformer == "passthrough":
-            continue
-        model_input = transformer.transform(model_input)
-        selected_names = _transformed_feature_names(
-            transformer,
-            selected_names,
-            step_name=name,
-        )
+    feature_selector = pipeline.named_steps.get("feature_selection")
+    if isinstance(feature_selector, SelectKBest):
+        model_input = feature_selector.transform(model_input)
+        selected_names = [
+            feature
+            for feature, selected in zip(
+                selected_names,
+                feature_selector.get_support(),
+                strict=True,
+            )
+            if selected
+        ]
 
     model = pipeline.named_steps["model"]
     processed_model = (
         model.regressor_ if isinstance(model, TransformedTargetRegressor) else model
     )
-    prediction_features = getattr(processed_model, "prediction_features", None)
-    if callable(prediction_features):
-        model_input = prediction_features(model_input)
-        selected_names = _transformed_feature_names(
-            processed_model,
-            selected_names,
-            step_name="model",
-        )
+    if isinstance(processed_model, AutoregressiveRegressor):
+        model_input = processed_model.prediction_features(model_input)
+        selected_names = list(processed_model.get_feature_names_out(selected_names))
 
     return ProcessedData(
         preprocessed=preprocessed,
@@ -310,36 +310,8 @@ def _processed_data(
     )
 
 
-def _transformed_feature_names(
-    transformer: object,
-    input_features: list[str],
-    *,
-    step_name: str,
-) -> list[str]:
-    get_support = getattr(transformer, "get_support", None)
-    if callable(get_support):
-        support = get_support()
-        return [
-            feature
-            for feature, selected in zip(input_features, support, strict=True)
-            if selected
-        ]
-
-    get_feature_names_out = getattr(transformer, "get_feature_names_out", None)
-    if callable(get_feature_names_out):
-        return list(get_feature_names_out(input_features))
-
-    output_count = getattr(transformer, "n_features_out_", len(input_features))
-    if output_count == len(input_features):
-        return input_features
-    return [f"{step_name}_{index}" for index in range(output_count)]
-
-
 def _to_frame(values: Any, columns: list[str]) -> pl.DataFrame:
-    toarray = getattr(values, "toarray", None)
-    if callable(toarray):
-        values = toarray()
-    return pl.DataFrame(values, schema=columns, orient="row")
+    return pl.DataFrame(to_dense_array(values), schema=columns, orient="row")
 
 
 def _grid_search_summary(

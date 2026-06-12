@@ -13,6 +13,7 @@ from mlstudio.backend import (
 def render_preprocessing_config(
     preprocessing: pl.DataFrame,
 ) -> pl.DataFrame:
+    st.text("Preprocessing Table")
     configured_steps: list[pl.DataFrame] = []
     string_steps = preprocessing.filter(pl.col("Type") == "String")
     if not string_steps.is_empty():

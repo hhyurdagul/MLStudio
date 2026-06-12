@@ -13,20 +13,22 @@ from mlstudio.backend import (
 from mlstudio.frontend.components import (
     render_data_preview,
     render_dataset_selector,
-    render_feature_target_selector,
     render_feature_selection,
+    render_feature_target_selector,
     render_grid_search,
+    render_lookback,
     render_metrics,
     render_model_config,
-    render_lookback,
-    render_processed_data,
     render_predictions,
     render_preprocessing_config,
+    render_processed_data,
     render_target_processing,
 )
 
 
-def render_training_page() -> None:
+def render_training_page(
+    attach_feature_selection: bool = False, attach_lookback: bool = False
+) -> None:
     st.header("Training")
     training_column, test_column = st.columns(2)
     with training_column:
@@ -60,10 +62,14 @@ def render_training_page() -> None:
             return
 
         target_processing = render_target_processing()
-        feature_selection = render_feature_selection(
-            feature_count=len(features),
+        feature_selection = (
+            render_feature_selection(
+                feature_count=len(features),
+            )
+            if attach_feature_selection
+            else None
         )
-        lookback = render_lookback()
+        lookback = render_lookback() if attach_lookback else None
 
     selection_column, percent_column = st.columns(2)
     row_selection = selection_column.selectbox(

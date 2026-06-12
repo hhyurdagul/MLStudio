@@ -4,8 +4,8 @@ from mlstudio.backend import deserialize_artifact, predict
 from mlstudio.frontend.components import (
     render_dataset_selector,
     render_metrics,
-    render_processed_data,
     render_predictions,
+    render_processed_data,
 )
 
 

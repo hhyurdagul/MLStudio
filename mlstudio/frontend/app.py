@@ -3,19 +3,23 @@ import streamlit as st
 from .pages import render_test_page, render_training_page, render_validation_page
 
 
-def run_app() -> None:
+def run_app(
+    attach_feature_selection: bool = False, attach_lookback: bool = False
+) -> None:
     st.set_page_config(page_title="MLStudio", layout="wide")
     st.title("MLStudio")
     st.caption("Train, validate, and test regression models.")
 
-    mode = st.radio(
-        "Mode",
-        ["Training", "Validation", "Test"],
-        horizontal=True
-    )
+    mode = st.radio("Mode", ["Training", "Validation", "Test"], horizontal=True)
     if mode == "Training":
-        render_training_page()
+        render_training_page(
+            attach_feature_selection=attach_feature_selection,
+            attach_lookback=attach_lookback,
+        )
     elif mode == "Validation":
-        render_validation_page()
+        render_validation_page(
+            attach_feature_selection=attach_feature_selection,
+            attach_lookback=attach_lookback,
+        )
     else:
         render_test_page()

@@ -5,6 +5,8 @@ from sklearn.base import BaseEstimator, RegressorMixin, clone
 from sklearn.metrics import r2_score
 from sklearn.utils.validation import check_array, check_is_fitted
 
+from .data import to_dense_array
+
 
 class AutoregressiveRegressor(RegressorMixin, BaseEstimator):
     def __init__(self, estimator: BaseEstimator, lookback: int = 1) -> None:
@@ -129,7 +131,4 @@ class AutoregressiveRegressor(RegressorMixin, BaseEstimator):
 
 def _dense_array(values: Any) -> np.ndarray:
     checked = check_array(values, accept_sparse=True)
-    toarray = getattr(checked, "toarray", None)
-    if callable(toarray):
-        checked = toarray()
-    return np.asarray(checked)
+    return to_dense_array(checked)

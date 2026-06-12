@@ -11,20 +11,22 @@ from mlstudio.backend import (
 )
 from mlstudio.frontend.components import (
     render_dataset_selector,
-    render_feature_target_selector,
     render_feature_selection,
+    render_feature_target_selector,
     render_grid_search,
+    render_lookback,
     render_metrics,
     render_model_config,
-    render_lookback,
-    render_processed_data,
     render_predictions,
     render_preprocessing_config,
+    render_processed_data,
     render_target_processing,
 )
 
 
-def render_validation_page() -> None:
+def render_validation_page(
+    attach_feature_selection: bool = False, attach_lookback: bool = False
+) -> None:
     st.header("Validation")
     data = render_dataset_selector("Upload training data")
     if data is None:
@@ -48,8 +50,12 @@ def render_validation_page() -> None:
             return
 
         target_processing = render_target_processing()
-        feature_selection = render_feature_selection(feature_count=len(features))
-        lookback = render_lookback()
+        feature_selection = (
+            render_feature_selection(feature_count=len(features))
+            if attach_feature_selection
+            else None
+        )
+        lookback = render_lookback() if attach_lookback else None
 
     strategy_column, value_column = st.columns(2)
     strategy = strategy_column.selectbox(

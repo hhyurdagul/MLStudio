@@ -5,6 +5,7 @@ import polars as pl
 from sklearn.base import BaseEstimator, clone
 from sklearn.metrics import (
     mean_absolute_error,
+    mean_absolute_percentage_error,
     mean_squared_error,
     r2_score,
 )
@@ -74,25 +75,15 @@ def calculate_metrics(
 ) -> RegressionMetrics:
     actual_values = np.asarray(actual, dtype=float)
     predicted_values = np.asarray(predicted, dtype=float)
-    nonzero = actual_values != 0
-    mape = (
-        float(
-            np.mean(
-                np.abs(
-                    (actual_values[nonzero] - predicted_values[nonzero])
-                    / actual_values[nonzero]
-                )
-            )
-            * 100
-        )
-        if nonzero.any()
-        else None
-    )
     return RegressionMetrics(
         r2=float(r2_score(actual_values, predicted_values)),
         mae=float(mean_absolute_error(actual_values, predicted_values)),
         rmse=float(mean_squared_error(actual_values, predicted_values) ** 0.5),
-        mape=mape,
+        mape=float(
+            mean_absolute_percentage_error(actual_values, predicted_values) * 100
+        )
+        if 0 not in actual_values
+        else None,
     )
 
 
@@ -128,9 +119,7 @@ def time_series_validation_predictions(
 
     predicted_indices: list[np.ndarray] = []
     predictions: list[np.ndarray] = []
-    for training_indices, test_indices in TimeSeriesSplit(
-        n_splits=folds
-    ).split(x):
+    for training_indices, test_indices in TimeSeriesSplit(n_splits=folds).split(x):
         fold_estimator = clone(estimator)
         fold_estimator.fit(x[training_indices], y[training_indices])
         predicted_indices.append(test_indices)
