@@ -5,20 +5,28 @@ description = "A Streamlit studio for regression training, validation, and testi
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "altair>=6.2.1",
-    "fastexcel>=0.20.2",
-    "polars>=1.41.2",
-    "scikit-learn>=1.9.0",
-    "scipy>=1.17.1",
-    "streamlit>=1.58.0",
-    "xlsxwriter>=3.2.9",
+  "altair>=6.2.1",
+  "fastexcel>=0.20.2",
+  "polars>=1.41.2",
+  "scikit-learn>=1.9.0",
+  "scipy>=1.17.1",
+  "streamlit>=1.58.0",
+  "torch>=2.12.0",
+  "xlsxwriter>=3.2.9",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.16",
-    "ty>=0.0.44",
+  "ruff>=0.15.16",
+  "ty>=0.0.44",
 ]
 
-[tool.ty.src]
-exclude = ["mlstudio/backend/feature_selection.py"]
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

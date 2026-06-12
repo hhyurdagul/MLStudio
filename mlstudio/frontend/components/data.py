@@ -4,11 +4,16 @@ import streamlit as st
 from mlstudio.backend import read_tabular_data
 
 
-def render_dataset_selector(label: str) -> pl.DataFrame | None:
+def render_dataset_selector(
+    label: str,
+    *,
+    key: str | None = None,
+) -> pl.DataFrame | None:
     uploaded_file = st.file_uploader(
         label,
         type=["csv", "xlsx"],
         accept_multiple_files=False,
+        key=key,
     )
     if uploaded_file is None:
         return None

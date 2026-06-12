@@ -1,7 +1,8 @@
 # MLStudio
 
 MLStudio is a Streamlit application for training, validating, and testing
-regression models without writing model-specific code.
+regression models without writing model-specific code. It also includes a
+PyTorch page for univariate time-series forecasting.
 
 ## Run
 
@@ -77,10 +78,40 @@ the required feature columns, runs predictions, and provides a CSV download.
 Metrics are optional and are calculated only when the saved target column is
 present.
 
+### Deep Learning Time Series
+
+Select **Time Series** from the sidebar to train or test a PyTorch model from
+one ordered numeric target series. The page creates sliding lookback windows
+and supports MLP, 1D-CNN, RNN, GRU, LSTM, Bi-LSTM, and Conv1D-LSTM models.
+
+Model controls include lookback, neurons, layers, learning rate, epochs, batch
+size, hidden activation, output activation, target scaling, and the final
+contiguous percentage of rows used for training. An optional second dataset
+can be used for leakage-free recursive backtesting.
+
+Deep-learning models are downloaded as versioned `.pt` bundles. A saved bundle
+can be uploaded on the same page to forecast an arbitrary future horizon, with
+an optional actual-target dataset for metrics. Forecasting always starts from
+the training history stored in the bundle and feeds predictions back
+recursively.
+
 ## Current Models
+
+Supervised regression:
 
 - Random Forest Regressor
 - Gradient Boosting Regressor
+- Voting Regressor
+
+Deep-learning time series:
+
+- MLP
+- 1D-CNN
+- RNN
+- GRU
+- LSTM
+- Bi-LSTM
+- Conv1D-LSTM
 
 ## Data Constraints
 
