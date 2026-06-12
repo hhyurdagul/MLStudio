@@ -11,6 +11,17 @@ from sklearn.preprocessing import (
 from .types import TargetProcessing
 
 
+def get_transformed_feature_count(preprocessing: pl.DataFrame) -> int:
+    return int(
+        preprocessing.select(
+            pl.when(pl.col("Preprocessing") == "OneHotEncoder")
+            .then(pl.col("Unique Count"))
+            .otherwise(1)
+            .sum()
+        ).item()
+    )
+
+
 def get_preprocessing_data(df: pl.DataFrame) -> pl.DataFrame:
     supported_columns = set(
         df.select(

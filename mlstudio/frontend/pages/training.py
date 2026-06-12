@@ -7,6 +7,7 @@ from mlstudio.backend import (
     RowSelection,
     TrainingConfig,
     get_preprocessing_data,
+    get_transformed_feature_count,
     serialize_artifact,
     train,
 )
@@ -64,7 +65,9 @@ def render_training_page(
         target_processing = render_target_processing()
         feature_selection = (
             render_feature_selection(
-                feature_count=len(features),
+                transformed_feature_count=get_transformed_feature_count(
+                    preprocessing
+                ),
             )
             if attach_feature_selection
             else None

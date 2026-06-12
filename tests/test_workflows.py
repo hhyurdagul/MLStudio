@@ -143,12 +143,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(training["row"].to_list(), list(range(16)))
         self.assertEqual(validation_data["row"].to_list(), [16, 17, 18, 19])
 
-    def test_metrics_exclude_zero_targets_from_mape(self) -> None:
+    def test_metrics_mape_return_none_if_zero_in_target(self) -> None:
         metrics = calculate_metrics(
             pl.Series([0.0, 10.0, 20.0]),
             np.array([5.0, 8.0, 22.0]),
         )
-        self.assertAlmostEqual(metrics.mape or 0, 15.0)
+        self.assertIsNone(metrics.mape)
 
     def test_training_returns_artifact_and_test_predictions(self) -> None:
         result = self.train_model(

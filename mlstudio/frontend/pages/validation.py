@@ -7,6 +7,7 @@ from mlstudio.backend import (
     ValidationConfig,
     ValidationStrategy,
     get_preprocessing_data,
+    get_transformed_feature_count,
     validate,
 )
 from mlstudio.frontend.components import (
@@ -51,7 +52,11 @@ def render_validation_page(
 
         target_processing = render_target_processing()
         feature_selection = (
-            render_feature_selection(feature_count=len(features))
+            render_feature_selection(
+                transformed_feature_count=get_transformed_feature_count(
+                    preprocessing
+                )
+            )
             if attach_feature_selection
             else None
         )

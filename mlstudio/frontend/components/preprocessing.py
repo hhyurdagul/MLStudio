@@ -65,11 +65,14 @@ def render_target_processing() -> TargetProcessing:
 
 
 def render_feature_selection(
-    feature_count: int,
+    transformed_feature_count: int,
 ) -> FeatureSelectionConfig | None:
     if not st.checkbox("Use feature selection"):
         return None
 
+    st.caption(
+        f"Preprocessing will produce {transformed_feature_count} features."
+    )
     method_column, count_column = st.columns(2)
     method = method_column.selectbox(
         "Feature selection method",
@@ -79,8 +82,8 @@ def render_feature_selection(
         count_column.number_input(
             "Number of selected features",
             min_value=1,
-            max_value=feature_count,
-            value=min(10, feature_count),
+            max_value=transformed_feature_count,
+            value=min(10, transformed_feature_count),
             step=1,
         )
     )
