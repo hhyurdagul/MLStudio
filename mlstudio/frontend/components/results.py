@@ -41,14 +41,16 @@ def render_processed_data(processed: ProcessedData) -> None:
             )
             st.dataframe(processed.preprocessed, hide_index=True)
         with model_input_tab:
-            st.caption(
-                "Final features: " + ", ".join(processed.selected_features)
-            )
+            st.caption("Final features: " + ", ".join(processed.selected_features))
             st.dataframe(processed.model_input, hide_index=True)
 
 
-def render_predictions(data: pl.DataFrame) -> None:
-    data_tab, graph_tab = st.tabs(["Data", "Graph"])
+def render_predictions(
+    data: pl.DataFrame,
+) -> None:
+    data_tab, graph_tab = st.tabs(
+        ["Data", "Graph"],
+    )
     with data_tab:
         st.dataframe(data, hide_index=True)
         st.download_button(
@@ -81,4 +83,7 @@ def render_predictions(data: pl.DataFrame) -> None:
                 tooltip=["Row:Q", "Series:N", "Value:Q"],
             )
         )
-        st.altair_chart(chart, width="stretch")
+        st.altair_chart(
+            chart,
+            width="stretch",
+        )

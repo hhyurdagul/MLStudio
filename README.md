@@ -78,18 +78,21 @@ the required feature columns, runs predictions, and provides a CSV download.
 Metrics are optional and are calculated only when the saved target column is
 present.
 
-### Deep Learning Time Series
+### Time Series
 
 Select **Time Series** from the sidebar to train or test a PyTorch model from
-one ordered numeric target series. The page creates sliding lookback windows
-and supports MLP, 1D-CNN, RNN, GRU, LSTM, Bi-LSTM, and Conv1D-LSTM models.
+one ordered numeric target series. The page creates lagged input windows and
+supports MLP, CNN, RNN, GRU, LSTM, Bi-LSTM, and ConvLSTM models.
 
-Model controls include lookback, neurons, layers, learning rate, epochs, batch
-size, hidden activation, output activation, target scaling, and the final
-contiguous percentage of rows used for training. An optional second dataset
-can be used for leakage-free recursive backtesting.
+The Lag Preview shows ACF and PACF charts for a configurable maximum lag.
+Inputs can use every available lag, explicit lag indices, the strongest N
+absolute ACF values, or every lag meeting an absolute ACF threshold. Model
+controls also include a neuron count for every layer, learning rate, epochs,
+batch size, activations, target scaling, and the final contiguous percentage
+of rows used for training. An optional second dataset can be used for
+recursive backtesting.
 
-Deep-learning models are downloaded as versioned `.pt` bundles. A saved bundle
+Time-series models are downloaded as versioned `.pt` bundles. A saved bundle
 can be uploaded on the same page to forecast an arbitrary future horizon, with
 an optional actual-target dataset for metrics. Forecasting always starts from
 the training history stored in the bundle and feeds predictions back
@@ -103,15 +106,15 @@ Supervised regression:
 - Gradient Boosting Regressor
 - Voting Regressor
 
-Deep-learning time series:
+Time-series models:
 
 - MLP
-- 1D-CNN
+- CNN
 - RNN
 - GRU
 - LSTM
 - Bi-LSTM
-- Conv1D-LSTM
+- ConvLSTM
 
 ## Data Constraints
 

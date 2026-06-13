@@ -19,9 +19,9 @@ def run_app(
         ["Supervised", "Time Series"],
     )
     if workspace == "Time Series":
-        from .pages.deep_learning import render_deep_learning_page
+        from .pages.timeseries import render_timeseries_page
 
-        render_deep_learning_page()
+        render_timeseries_page()
         return
 
     mode = st.radio(
