@@ -1,5 +1,6 @@
 from .artifacts import deserialize_artifact, serialize_artifact
 from .data import read_tabular_data
+from .elm import ELMRegressor
 from .feature_selection import SCORE_FUNCTIONS
 from .lookback import AutoregressiveRegressor
 from .models import get_model_definitions
@@ -17,14 +18,15 @@ from .types import (
     TestResult,
     TrainingConfig,
     TrainingResult,
-    ValidationResult,
     ValidationConfig,
+    ValidationResult,
     ValidationStrategy,
 )
 from .workflows import predict, train, validate
 
 __all__ = [
     "AutoregressiveRegressor",
+    "ELMRegressor",
     "FeatureSelectionConfig",
     "ModelArtifact",
     "ModelConfig",

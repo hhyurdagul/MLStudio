@@ -48,7 +48,7 @@ OUTPUT_ACTIVATIONS: tuple[OutputActivation, ...] = (
     "Sigmoid",
     "Tanh",
 )
-TIMESERIES_ARTIFACT_VERSION = 3
+TIMESERIES_ARTIFACT_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -199,8 +199,7 @@ def forecast_timeseries_model(
     with torch.no_grad():
         for _ in range(horizon):
             selected_lags = [
-                history[-lag]
-                for lag in reversed(artifact.config.lag_indices)
+                history[-lag] for lag in reversed(artifact.config.lag_indices)
             ]
             window = torch.tensor(
                 selected_lags,
@@ -266,9 +265,7 @@ def deserialize_timeseries_artifact(data: bytes) -> TimeSeriesArtifact:
         )
         _validate_config(artifact.config)
         if len(artifact.target_history) != artifact.config.max_time_lag:
-            raise ValueError(
-                "Artifact target history does not match its max time lag."
-            )
+            raise ValueError("Artifact target history does not match its max time lag.")
         model = create_timeseries_model(artifact.config)
         model.load_state_dict(artifact.state_dict)
         return artifact

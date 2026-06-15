@@ -104,6 +104,10 @@ Supervised regression:
 
 - Random Forest Regressor
 - Gradient Boosting Regressor
+- Support Vector Regressor
+- Extreme Learning Machine Regressor
+- XGBoost Regressor
+- CatBoost Regressor
 - Voting Regressor
 
 Time-series models:

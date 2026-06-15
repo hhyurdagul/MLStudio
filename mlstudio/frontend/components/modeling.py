@@ -8,6 +8,7 @@ from mlstudio.backend.models import (
     ModelParameter,
     ParameterValue,
     format_parameter_value,
+    is_parameter_visible,
 )
 
 
@@ -44,13 +45,17 @@ def _render_parameters(
     model: ModelDefinition,
 ) -> dict[str, ParameterValue]:
     columns = st.columns(min(3, len(model.parameters)))
-    return {
-        parameter.name: _render_parameter(
+    parameters: dict[str, ParameterValue] = {}
+    rendered_index = 0
+    for parameter in model.parameters:
+        if not is_parameter_visible(parameter, parameters):
+            continue
+        parameters[parameter.name] = _render_parameter(
             parameter,
-            columns[index % len(columns)],
+            columns[rendered_index % len(columns)],
         )
-        for index, parameter in enumerate(model.parameters)
-    }
+        rendered_index += 1
+    return parameters
 
 
 def _render_parameter(
@@ -90,15 +95,21 @@ def _render_grid(
     columns = st.columns(min(3, len(model.parameters)))
     param_grid: dict[str, list[ParameterValue]] = {}
     valid = True
-    for index, parameter in enumerate(model.parameters):
-        values = columns[index % len(columns)].multiselect(
+    selected_values: dict[str, list[ParameterValue]] = {}
+    rendered_index = 0
+    for parameter in model.parameters:
+        if not is_parameter_visible(parameter, selected_values):
+            continue
+        values = columns[rendered_index % len(columns)].multiselect(
             parameter.label,
             options=parameter.grid_options,
             default=parameter.grid_default,
             format_func=format_parameter_value(parameter),
         )
+        selected_values[parameter.name] = values
         param_grid[f"model__{parameter.name}"] = values
         valid = valid and bool(values)
+        rendered_index += 1
     if not valid:
         st.error("Every grid-search parameter needs at least one value.")
     return param_grid, valid
