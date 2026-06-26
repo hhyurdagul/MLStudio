@@ -11,7 +11,6 @@ from mlstudio.frontend.components import (
 
 def render_test_page() -> None:
     st.header("Test")
-    st.warning("Only upload model bundles that you created or trust.")
     model_column, data_column = st.columns(2)
     with model_column:
         model_file = st.file_uploader(

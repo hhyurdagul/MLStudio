@@ -28,7 +28,7 @@ from mlstudio.frontend.components import (
 def render_validation_page(
     attach_feature_selection: bool = False, attach_lookback: bool = False
 ) -> None:
-    st.header("Validation")
+    st.header("Train-Test On Training Data")
     data = render_dataset_selector("Upload training data")
     if data is None:
         st.info("Upload training data to validate a model.")
@@ -78,13 +78,14 @@ def render_validation_page(
         )
         validation_percent = 20
     else:
-        validation_percent = value_column.slider(
-            "Validation percent",
-            1,
+        training_percent = value_column.slider(
+            "Training percent",
             50,
-            20,
+            99,
+            80,
         )
         folds = 5
+        validation_percent = 100 - training_percent
 
     model, model_is_valid = render_model_config()
     if not st.button(

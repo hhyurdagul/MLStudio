@@ -35,21 +35,11 @@ def render_preprocessing_config(
         )
     numeric_steps = preprocessing.filter(pl.col("Type").is_in(["Numeric", "Boolean"]))
     if not numeric_steps.is_empty():
+        selected = st.selectbox(
+            "Numeric Scaling", ["None", "StandardScaler", "MinMaxScaler"]
+        )
         configured_steps.append(
-            pl.DataFrame(
-                st.data_editor(
-                    numeric_steps,
-                    disabled=["Variable", "Type", "Unique Count"],
-                    column_config={
-                        "Preprocessing": st.column_config.SelectboxColumn(
-                            "Preprocessing",
-                            options=["StandardScaler", "MinMaxScaler", "None"],
-                            required=True,
-                        )
-                    },
-                    hide_index=True,
-                )
-            )
+            numeric_steps.with_columns(pl.lit(selected).alias("Preprocessing"))
         )
     return pl.concat(configured_steps)
 
@@ -70,9 +60,7 @@ def render_feature_selection(
     if not st.checkbox("Use feature selection"):
         return None
 
-    st.caption(
-        f"Preprocessing will produce {transformed_feature_count} features."
-    )
+    st.caption(f"Preprocessing will produce {transformed_feature_count} features.")
     method_column, count_column = st.columns(2)
     method = method_column.selectbox(
         "Feature selection method",

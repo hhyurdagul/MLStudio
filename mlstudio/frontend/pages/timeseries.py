@@ -158,7 +158,6 @@ def _render_training() -> None:
 
 
 def _render_test() -> None:
-    st.warning("Only upload time-series bundles that you created or trust.")
     bundle = st.file_uploader(
         "Upload time-series bundle",
         type=["pt"],
@@ -321,7 +320,7 @@ def _render_config(
         layers_column.number_input(
             "Layers",
             min_value=1,
-            value=2,
+            value=1,
             step=1,
         )
     )
@@ -381,7 +380,7 @@ def _render_config(
         st.selectbox(
             "Target processing",
             ["None", "StandardScaler", "MinMaxScaler"],
-            index=1,
+            index=0,
         ),
     )
     return TimeSeriesConfig(

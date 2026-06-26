@@ -16,7 +16,7 @@ def run_app(
 
     workspace = st.sidebar.radio(
         "Workspace",
-        ["Supervised", "Time Series"],
+        ["Time Series", "Supervised"],
     )
     if workspace == "Time Series":
         from .pages.timeseries import render_timeseries_page
@@ -24,9 +24,13 @@ def run_app(
         render_timeseries_page()
         return
 
+    st.header("Supervised")
+    st.caption(
+        "Train machine learning models on supervised data."
+    )
     mode = st.radio(
         "Mode",
-        ["Training", "Validation", "Test"],
+        ["Training", "Test", "Train-Test On Training Data"],
         horizontal=True,
     )
     if mode == "Training":
@@ -34,10 +38,10 @@ def run_app(
             attach_feature_selection=attach_feature_selection,
             attach_lookback=attach_lookback,
         )
-    elif mode == "Validation":
+    elif mode == "Test":
+        render_test_page()
+    else:
         render_validation_page(
             attach_feature_selection=attach_feature_selection,
             attach_lookback=attach_lookback,
         )
-    elif mode == "Test":
-        render_test_page()
