@@ -30,7 +30,7 @@ def run_app(
     )
     mode = st.radio(
         "Mode",
-        ["Training", "Test", "Train-Test On Training Data"],
+        ["Model Training", "Model Testing", "Train-Test On Training Data"],
         horizontal=True,
     )
     if mode == "Training":

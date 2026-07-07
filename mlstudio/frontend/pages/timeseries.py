@@ -31,7 +31,7 @@ def render_timeseries_page() -> None:
     )
     mode = st.radio(
         "Mode",
-        ["Training", "Test"],
+        ["Model Training", "Model Testing"],
         horizontal=True,
     )
     if mode == "Training":
