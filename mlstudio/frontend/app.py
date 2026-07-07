@@ -33,12 +33,12 @@ def run_app(
         ["Model Training", "Model Testing", "Train-Test On Training Data"],
         horizontal=True,
     )
-    if mode == "Training":
+    if mode == "Model Training":
         render_training_page(
             attach_feature_selection=attach_feature_selection,
             attach_lookback=attach_lookback,
         )
-    elif mode == "Test":
+    elif mode == "Model Testing":
         render_test_page()
     else:
         render_validation_page(

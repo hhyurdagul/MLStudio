@@ -34,7 +34,7 @@ def render_timeseries_page() -> None:
         ["Model Training", "Model Testing"],
         horizontal=True,
     )
-    if mode == "Training":
+    if mode == "Model Training":
         _render_training()
     else:
         _render_test()
