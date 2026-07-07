@@ -44,6 +44,8 @@ def render_model_config() -> tuple[ModelConfig, bool]:
 def _render_parameters(
     model: ModelDefinition,
 ) -> dict[str, ParameterValue]:
+    if len(model.parameters) == 0:
+        return {} 
     columns = st.columns(min(3, len(model.parameters)))
     parameters: dict[str, ParameterValue] = {}
     rendered_index = 0
@@ -91,6 +93,8 @@ def _render_parameter(
 def _render_grid(
     model: ModelDefinition,
 ) -> tuple[dict[str, list[ParameterValue]], bool]:
+    if len(model.parameters) == 0:
+        return ({}), False
     st.caption("Select the values GridSearchCV should evaluate.")
     columns = st.columns(min(3, len(model.parameters)))
     param_grid: dict[str, list[ParameterValue]] = {}
