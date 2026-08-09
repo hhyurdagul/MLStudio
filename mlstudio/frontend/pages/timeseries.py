@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from math import ceil
 from typing import cast
 
@@ -23,7 +25,9 @@ from mlstudio.frontend.components import (
 )
 
 
-def render_timeseries_page() -> None:
+def render_timeseries_page(
+    on_mode_change: Callable[[], None] | None = None,
+) -> None:
     st.header("Time Series")
     st.caption(
         "Train univariate PyTorch models on ordered target history and forecast "
@@ -33,6 +37,8 @@ def render_timeseries_page() -> None:
         "Mode",
         ["Model Training", "Model Testing"],
         horizontal=True,
+        key="_navigation_timeseries_mode",
+        on_change=on_mode_change,
     )
     if mode == "Model Training":
         _render_training()

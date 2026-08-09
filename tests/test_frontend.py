@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import polars as pl
 
 from mlstudio.frontend.components import results
+frontend_app = importlib.import_module("mlstudio.frontend.app")
 
 supervised_test_page = importlib.import_module("mlstudio.frontend.pages.test")
 supervised_training_page = importlib.import_module(
@@ -328,8 +329,49 @@ class ForecastCountTests(unittest.TestCase):
         self.assertEqual(streamlit.number_input.call_args.kwargs["value"], 4)
 
 
+class NavigationStateTests(unittest.TestCase):
+    def test_mode_change_clears_page_state_and_streamlit_caches(self) -> None:
+        streamlit = MagicMock()
+        streamlit.session_state = {
+            frontend_app._WORKSPACE_KEY: "Supervised",
+            frontend_app._SUPERVISED_MODE_KEY: "Model Training",
+            "supervised_training_artifact": object(),
+            "uploaded_model": object(),
+        }
+
+        with patch.object(frontend_app, "st", streamlit):
+            frontend_app._clear_supervised_mode_state()
+
+        self.assertEqual(
+            streamlit.session_state,
+            {
+                frontend_app._WORKSPACE_KEY: "Supervised",
+                frontend_app._SUPERVISED_MODE_KEY: "Model Training",
+            },
+        )
+        streamlit.cache_data.clear.assert_called_once_with()
+        streamlit.cache_resource.clear.assert_called_once_with()
+
+    def test_workspace_change_also_resets_saved_mode(self) -> None:
+        streamlit = MagicMock()
+        streamlit.session_state = {
+            frontend_app._WORKSPACE_KEY: "Time Series",
+            frontend_app._SUPERVISED_MODE_KEY: "Model Testing",
+            frontend_app._TIMESERIES_MODE_KEY: "Model Testing",
+            "timeseries_training_artifact": object(),
+        }
+
+        with patch.object(frontend_app, "st", streamlit):
+            frontend_app._clear_workspace_state()
+
+        self.assertEqual(
+            streamlit.session_state,
+            {frontend_app._WORKSPACE_KEY: "Time Series"},
+        )
+
+
 class TimeSeriesConfigTests(unittest.TestCase):
-    def test_learning_rate_minimum_and_precision_are_five_decimals(self) -> None:
+    def test_learning_rate_minimum_and_precision(self) -> None:
         streamlit = MagicMock()
         model_column = MagicMock()
         layers_column = MagicMock()
@@ -348,7 +390,7 @@ class TimeSeriesConfigTests(unittest.TestCase):
         model_column.selectbox.return_value = "MLP"
         layers_column.number_input.return_value = 1
         neuron_column.number_input.return_value = 64
-        rate_column.number_input.return_value = 0.00001
+        rate_column.number_input.return_value = 0.0001
         epochs_column.number_input.return_value = 10
         batch_column.number_input.return_value = 4
         hidden_column.selectbox.return_value = "ReLU"
@@ -358,10 +400,10 @@ class TimeSeriesConfigTests(unittest.TestCase):
         with patch.object(timeseries_page, "st", streamlit):
             config = timeseries_page._render_config(2, (1, 2))
 
-        self.assertEqual(config.learning_rate, 0.00001)
-        self.assertEqual(rate_column.number_input.call_args.kwargs["min_value"], 0.00001)
-        self.assertEqual(rate_column.number_input.call_args.kwargs["step"], 0.00001)
-        self.assertEqual(rate_column.number_input.call_args.kwargs["format"], "%.5f")
+        self.assertEqual(config.learning_rate, 0.0001)
+        self.assertEqual(rate_column.number_input.call_args.kwargs["min_value"], 0.0001)
+        self.assertEqual(rate_column.number_input.call_args.kwargs["step"], 0.0001)
+        self.assertEqual(rate_column.number_input.call_args.kwargs["format"], "%.4f")
 
 
 if __name__ == "__main__":
