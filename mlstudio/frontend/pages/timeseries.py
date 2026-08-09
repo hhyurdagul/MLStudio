@@ -69,6 +69,10 @@ def _render_training() -> None:
             value=100,
             help="Uses only the final contiguous percentage of the ordered series.",
         )
+
+    if backtest_data is not None and backtest_data.is_empty():
+        st.error("The backtest dataset is empty.")
+        return
     with st.expander("Target preview"):
         st.dataframe(training_data.select(target), hide_index=True)
 
@@ -97,7 +101,7 @@ def _render_training() -> None:
                     training_data,
                     target,
                     config,
-                    backtest_data,
+                    None,
                     training_percent,
                 )
             st.session_state["timeseries_training_artifact"] = (
@@ -109,13 +113,6 @@ def _render_training() -> None:
     if training_result is not None:
         st.success(f"Trained on {training_result.trained_windows} sliding windows.")
         _render_loss_history(training_result.losses)
-        if training_result.prediction is not None:
-            st.subheader("Backtest")
-            if training_result.prediction.metrics is not None:
-                render_metrics(training_result.prediction.metrics)
-            render_predictions(
-                training_result.prediction.data,
-            )
 
     artifact = st.session_state.get("timeseries_training_artifact")
     if artifact is None:
@@ -128,33 +125,49 @@ def _render_training() -> None:
         mime="application/octet-stream",
         on_click="ignore",
     )
-    if backtest_data is not None:
-        return
-
     st.subheader("Forecast trained model")
+    maximum_forecasts = (
+        backtest_data.height if backtest_data is not None else None
+    )
     forecast_count = int(
         st.number_input(
             "Forecast count",
             min_value=1,
-            value=10,
+            max_value=maximum_forecasts,
+            value=maximum_forecasts if maximum_forecasts is not None else 10,
             step=1,
+            help=(
+                "Choose how many rows to forecast from the start of the "
+                "backtest dataset."
+                if maximum_forecasts is not None
+                else None
+            ),
         )
     )
-    if st.button(
+    if not st.button(
         "Generate forecast",
         type="primary",
     ):
-        try:
-            with st.spinner("Generating recursive forecast..."):
-                forecast = forecast_timeseries_model(
-                    artifact,
-                    forecast_count,
-                )
-            render_predictions(
-                forecast.prediction.data,
+        return
+
+    try:
+        with st.spinner("Generating recursive forecast..."):
+            forecast = forecast_timeseries_model(
+                artifact,
+                forecast_count,
+                (
+                    backtest_data.head(forecast_count)
+                    if backtest_data is not None
+                    else None
+                ),
             )
-        except Exception as error:
-            st.error(f"Forecasting failed: {error}")
+        if forecast.prediction.metrics is not None:
+            render_metrics(forecast.prediction.metrics)
+        render_predictions(
+            forecast.prediction.data,
+        )
+    except Exception as error:
+        st.error(f"Forecasting failed: {error}")
 
 
 def _render_test() -> None:
@@ -188,13 +201,13 @@ def _render_test() -> None:
     maximum_horizon = actual_data.height if actual_data is not None else None
     horizon = int(
         st.number_input(
-            "Forecast horizon",
+            "Forecast count",
             min_value=1,
             max_value=maximum_horizon,
-            value=min(10, maximum_horizon) if maximum_horizon is not None else 10,
+            value=maximum_horizon if maximum_horizon is not None else 10,
             step=1,
             help=(
-                "Limited to the number of rows in the actual target dataset."
+                "Choose how many rows to forecast from the actual target dataset."
                 if maximum_horizon is not None
                 else None
             ),
@@ -343,10 +356,10 @@ def _render_config(
     learning_rate = float(
         rate_column.number_input(
             "Learning rate",
-            min_value=0.000001,
+            min_value=0.0001,
             value=0.001,
             step=0.0001,
-            format="%.6f",
+            format="%.4f",
         )
     )
     epochs = int(

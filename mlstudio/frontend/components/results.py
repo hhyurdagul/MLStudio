@@ -62,7 +62,7 @@ def render_predictions(
         )
     with graph_tab:
         chart_data = (
-            data.with_row_index("Row")
+            data.with_row_index("Row", offset=1)
             .unpivot(index="Row", variable_name="Series", value_name="Value")
             .to_pandas()
         )
@@ -70,7 +70,12 @@ def render_predictions(
             alt.Chart(chart_data)
             .mark_line()
             .encode(
-                x=alt.X("Row:Q", title="Row"),
+                x=alt.X(
+                    "Row:Q",
+                    title="Row",
+                    axis=alt.Axis(format="d", tickMinStep=1),
+                    scale=alt.Scale(domainMin=1, nice=False),
+                ),
                 y=alt.Y("Value:Q", title="Value"),
                 color=alt.Color(
                     "Series:N",

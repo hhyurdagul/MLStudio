@@ -22,6 +22,19 @@ def render_test_page() -> None:
     if model_file is None or test_data is None:
         st.info("Upload a model bundle and test data to run predictions.")
         return
+    if test_data.is_empty():
+        st.error("The test dataset is empty.")
+        return
+    prediction_count = int(
+        st.number_input(
+            "Prediction count",
+            min_value=1,
+            max_value=test_data.height,
+            value=test_data.height,
+            step=1,
+            help="Choose how many rows to predict from the start of the test dataset.",
+        )
+    )
 
     try:
         artifact = deserialize_artifact(model_file.getvalue())
@@ -38,7 +51,7 @@ def render_test_page() -> None:
 
     try:
         with st.spinner("Running predictions..."):
-            result = predict(artifact, test_data)
+            result = predict(artifact, test_data.head(prediction_count))
         render_processed_data(result.processed)
         if result.prediction.metrics is not None:
             render_metrics(result.prediction.metrics)
